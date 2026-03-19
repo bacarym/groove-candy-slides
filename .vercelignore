@@ -1,0 +1,8 @@
+app.py
+config.py
+groove_candy.py
+static/
+.venv/
+output/
+__pycache__/
+*.pyc
