@@ -1,0 +1,463 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Groove Candy Slide Maker</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🍬</text></svg>">
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        background: #0a0a0a;
+        color: #fff;
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+      .container {
+        max-width: 640px;
+        width: 100%;
+        padding: 40px 20px;
+      }
+      h1 {
+        text-align: center;
+        font-size: 28px;
+        margin-bottom: 8px;
+        background: linear-gradient(135deg, #f5a623, #e74c8b);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+      }
+      .subtitle {
+        text-align: center;
+        color: #888;
+        font-size: 14px;
+        margin-bottom: 40px;
+      }
+      .form-group {
+        margin-bottom: 20px;
+      }
+      label {
+        display: block;
+        font-size: 13px;
+        color: #aaa;
+        margin-bottom: 6px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+      }
+      input[type="text"],
+      input[type="number"] {
+        width: 100%;
+        padding: 14px 16px;
+        background: #1a1a1a;
+        border: 1px solid #333;
+        border-radius: 10px;
+        color: #fff;
+        font-size: 16px;
+        outline: none;
+        transition: border-color 0.2s;
+      }
+      input:focus {
+        border-color: #f5a623;
+      }
+      .row {
+        display: flex;
+        gap: 12px;
+      }
+      .row .form-group {
+        flex: 1;
+      }
+      .btn {
+        width: 100%;
+        padding: 16px;
+        background: linear-gradient(135deg, #f5a623, #e74c8b);
+        border: none;
+        border-radius: 10px;
+        color: #fff;
+        font-size: 18px;
+        font-weight: 600;
+        cursor: pointer;
+        margin-top: 10px;
+        transition: opacity 0.2s;
+      }
+      .btn:hover {
+        opacity: 0.9;
+      }
+      .btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+      .btn-green {
+        background: linear-gradient(135deg, #4caf50, #2e7d32);
+      }
+      .btn-back {
+        margin-top: 10px;
+        background: #333;
+        font-size: 14px;
+      }
+      #status {
+        margin-top: 30px;
+        text-align: center;
+      }
+      .spinner {
+        display: inline-block;
+        width: 24px;
+        height: 24px;
+        border: 3px solid #333;
+        border-top-color: #f5a623;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+        margin-right: 10px;
+        vertical-align: middle;
+      }
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+      .status-text {
+        color: #aaa;
+        font-size: 15px;
+        vertical-align: middle;
+      }
+      .error {
+        color: #ff4444;
+      }
+      .section-title {
+        font-size: 13px;
+        color: #888;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        margin-bottom: 12px;
+        margin-top: 28px;
+      }
+      .img-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 10px;
+        margin-bottom: 20px;
+      }
+      .img-card {
+        position: relative;
+        cursor: pointer;
+        border-radius: 10px;
+        overflow: hidden;
+        border: 3px solid transparent;
+        transition:
+          border-color 0.2s,
+          transform 0.15s;
+        aspect-ratio: 1;
+      }
+      .img-card:hover {
+        transform: scale(1.03);
+      }
+      .img-card.selected {
+        border-color: #f5a623;
+      }
+      .img-card img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+      }
+      .img-badge {
+        position: absolute;
+        top: 6px;
+        right: 6px;
+        background: rgba(0, 0, 0, 0.75);
+        color: #f5a623;
+        font-size: 10px;
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-weight: 600;
+      }
+      .img-label {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        background: rgba(0, 0, 0, 0.7);
+        color: #ccc;
+        font-size: 10px;
+        padding: 4px 6px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .img-check {
+        position: absolute;
+        top: 6px;
+        left: 6px;
+        width: 22px;
+        height: 22px;
+        border-radius: 50%;
+        background: #f5a623;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        font-size: 14px;
+        color: #000;
+        font-weight: bold;
+      }
+      .img-card.selected .img-check {
+        display: flex;
+      }
+      .meta-info {
+        background: #1a1a1a;
+        border-radius: 12px;
+        padding: 16px;
+        margin-bottom: 8px;
+        text-align: center;
+      }
+      .meta-artist {
+        font-size: 20px;
+        font-weight: 700;
+      }
+      .meta-track {
+        color: #aaa;
+        font-size: 15px;
+        margin-top: 4px;
+      }
+      .caption-box {
+        background: #1a1a1a;
+        border: 1px solid #333;
+        border-radius: 12px;
+        padding: 20px 16px 16px;
+        white-space: pre-wrap;
+        font-size: 14px;
+        line-height: 1.6;
+        color: #ddd;
+        position: relative;
+      }
+      .caption-box .ht {
+        color: #6b8afd;
+      }
+      .copy-btn {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        padding: 6px 14px;
+        background: #333;
+        border: 1px solid #555;
+        border-radius: 6px;
+        color: #f5a623;
+        font-size: 12px;
+        cursor: pointer;
+        transition: background 0.2s;
+      }
+      .copy-btn:hover {
+        background: #444;
+      }
+      .copy-btn.ok {
+        color: #4caf50;
+        border-color: #4caf50;
+      }
+      .info-box {
+        background: #1a1a1a;
+        border: 1px solid #333;
+        border-radius: 12px;
+        padding: 20px;
+        margin-top: 20px;
+        text-align: center;
+        color: #aaa;
+        font-size: 14px;
+        line-height: 1.6;
+      }
+      .info-box code {
+        background: #222;
+        padding: 4px 10px;
+        border-radius: 6px;
+        color: #f5a623;
+        font-size: 13px;
+      }
+      .hidden {
+        display: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>Groove Candy</h1>
+      <p class="subtitle">
+        1 lien YouTube &#8594; images vinyl + caption Instagram
+      </p>
+
+      <!-- STEP 1 -->
+      <div id="step1">
+        <div class="form-group">
+          <label>Lien YouTube</label>
+          <input
+            type="text"
+            id="url"
+            placeholder="https://youtube.com/watch?v=..."
+          />
+        </div>
+        <button class="btn" id="searchBtn" onclick="doSearch()">
+          Rechercher
+        </button>
+      </div>
+
+      <div id="status"></div>
+
+      <!-- STEP 2 -->
+      <div id="step2" class="hidden">
+        <div id="metaBox"></div>
+        <div class="section-title">Choisis l'image du macaron</div>
+        <div class="img-grid" id="imgGrid"></div>
+        <div class="section-title">Caption Instagram</div>
+        <div class="caption-box" id="captionBox"></div>
+        <div class="info-box">
+          Pour g&eacute;n&eacute;rer les 3 slides vid&eacute;o, lance en local :<br />
+          <code>python app.py</code>
+        </div>
+        <button class="btn btn-back" onclick="backToSearch()">
+          &#8592; Nouvelle recherche
+        </button>
+      </div>
+    </div>
+
+    <script>
+      var state = {};
+
+      function doSearch() {
+        var url = document.getElementById("url").value.trim();
+        if (!url) return;
+        document.getElementById("searchBtn").disabled = true;
+        showStatus("Recherche YouTube + Discogs...");
+
+        fetch("/api/search", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ url: url }),
+        })
+          .then(function (r) {
+            return r.json();
+          })
+          .then(function (data) {
+            document.getElementById("searchBtn").disabled = false;
+            hideStatus();
+            if (data.error) {
+              showError(data.error);
+              return;
+            }
+            state = data;
+            state.selectedIdx = null;
+            showStep2(data);
+          })
+          .catch(function (e) {
+            document.getElementById("searchBtn").disabled = false;
+            showError(e.message);
+          });
+      }
+
+      function showStep2(data) {
+        document.getElementById("step1").classList.add("hidden");
+        document.getElementById("step2").classList.remove("hidden");
+
+        document.getElementById("metaBox").innerHTML =
+          '<div class="meta-info"><div class="meta-artist">' +
+          esc(data.artist) +
+          '</div><div class="meta-track">' +
+          esc(data.track) +
+          "</div></div>";
+
+        var grid = document.getElementById("imgGrid");
+        grid.innerHTML = "";
+        data.images.forEach(function (img, i) {
+          var card = document.createElement("div");
+          card.className = "img-card";
+          card.setAttribute("data-idx", i);
+          card.onclick = function () {
+            selectImage(i);
+          };
+          card.innerHTML =
+            '<img src="' +
+            esc(img.thumb) +
+            '" loading="lazy" />' +
+            '<div class="img-check">&#10003;</div>' +
+            '<div class="img-badge">' +
+            img.score +
+            "</div>" +
+            '<div class="img-label">' +
+            esc(img.label || img.type) +
+            "</div>";
+          grid.appendChild(card);
+        });
+
+        updateCaption(data, 0);
+      }
+
+      function selectImage(idx) {
+        state.selectedIdx = idx;
+        document.querySelectorAll(".img-card").forEach(function (c) {
+          c.classList.remove("selected");
+        });
+        document
+          .querySelector('.img-card[data-idx="' + idx + '"]')
+          .classList.add("selected");
+        updateCaption(state, idx);
+      }
+
+      function updateCaption(data, idx) {
+        var img = idx !== null ? data.images[idx] : data.images[0] || {};
+        var cap = "Artist: " + data.artist + "\n";
+        cap += "Music: " + data.track + "\n";
+        if (img.label) cap += "Label: " + img.label + "\n";
+        if (img.year) cap += "Year: " + img.year + "\n";
+        cap += "\n.\n.\n.\n\n";
+        cap += "#deephouse #funkyhouse #chicagohouse #house #garagehouse";
+        window._cap = cap;
+
+        var box = document.getElementById("captionBox");
+        box.innerHTML =
+          '<button class="copy-btn" onclick="copyC()">Copier</button>' +
+          esc(cap).replace(/#(\w+)/g, '<span class="ht">#$1</span>');
+      }
+
+      function backToSearch() {
+        document.getElementById("step1").classList.remove("hidden");
+        document.getElementById("step2").classList.add("hidden");
+        hideStatus();
+      }
+
+      function copyC() {
+        navigator.clipboard.writeText(window._cap).then(function () {
+          var b = document.querySelector(".copy-btn");
+          b.textContent = "Copi\u00e9 !";
+          b.classList.add("ok");
+          setTimeout(function () {
+            b.textContent = "Copier";
+            b.classList.remove("ok");
+          }, 2000);
+        });
+      }
+
+      function showStatus(msg) {
+        document.getElementById("status").innerHTML =
+          '<span class="spinner"></span><span class="status-text">' +
+          esc(msg) +
+          "</span>";
+      }
+      function hideStatus() {
+        document.getElementById("status").innerHTML = "";
+      }
+      function showError(msg) {
+        document.getElementById("status").innerHTML =
+          '<span class="status-text error">' + esc(msg) + "</span>";
+        document.getElementById("searchBtn").disabled = false;
+      }
+
+      function esc(s) {
+        if (!s) return "";
+        var d = document.createElement("div");
+        d.textContent = String(s);
+        return d.innerHTML;
+      }
+    </script>
+  </body>
+</html>

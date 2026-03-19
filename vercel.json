@@ -1,7 +1,3 @@
 {
-  "version": 2,
-  "framework": null,
-  "buildCommand": "",
-  "installCommand": "",
-  "outputDirectory": "static"
+  "version": 2
 }
