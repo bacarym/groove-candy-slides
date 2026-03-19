@@ -7,7 +7,7 @@ import re
 
 import requests
 
-DISCOGS_TOKEN = os.environ.get("DISCOGS_TOKEN", "")
+DISCOGS_TOKEN = os.environ.get("DISCOGS_TOKEN", "").strip()
 DISCOGS_UA = "GrooveCandySlideMaker/1.0"
 
 
