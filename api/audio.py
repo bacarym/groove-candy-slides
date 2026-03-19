@@ -26,6 +26,9 @@ class handler(BaseHTTPRequestHandler):
                     "noplaylist": True,
                     "postprocessors": [],
                     "socket_timeout": 6,
+                    "extractor_args": {
+                        "youtube": {"player_client": ["tv_embedded", "mweb"]},
+                    },
                 }
 
                 with yt_dlp.YoutubeDL(ydl_opts) as ydl:
