@@ -115,6 +115,17 @@
         border-radius: 3px; transition: width 0.4s ease;
       }
       .progress-label { color: #aaa; font-size: 14px; }
+      .dropzone {
+        border: 2px dashed #444; border-radius: 16px; padding: 40px 20px;
+        text-align: center; cursor: pointer; transition: all 0.25s;
+        margin-top: 20px; background: #111;
+      }
+      .dropzone:hover, .dropzone.dragover { border-color: #f5a623; background: #1a1a0a; }
+      .dropzone-icon { font-size: 36px; margin-bottom: 12px; }
+      .dropzone-text { color: #aaa; font-size: 15px; line-height: 1.6; }
+      .dropzone-text strong { color: #f5a623; }
+      .dropzone-file { color: #4caf50; font-size: 14px; margin-top: 8px; font-weight: 600; }
+      .dropzone input[type="file"] { display: none; }
       .slide-card {
         background: #1a1a1a; border-radius: 12px; padding: 16px;
         margin-bottom: 10px; display: flex; align-items: center; justify-content: space-between;
@@ -140,7 +151,6 @@
         background: linear-gradient(135deg, #6b8afd, #4c5fd7);
         display: flex; align-items: center; justify-content: center; gap: 10px;
       }
-      .btn-bulk svg { flex-shrink: 0; }
       .slides-list { margin-top: 16px; }
       .hidden { display: none; }
     </style>
@@ -171,20 +181,21 @@
 
       <div id="status"></div>
 
-      <!-- STEP 2: Select image -->
+      <!-- STEP 2: Select image + audio -->
       <div id="step2" class="hidden">
         <div id="metaBox"></div>
         <div class="section-title">Choisis l'image du macaron</div>
         <div class="img-grid" id="imgGrid"></div>
         <div class="section-title">Caption Instagram</div>
         <div class="caption-box" id="captionBox"></div>
+        <div id="audioSection"></div>
         <button class="btn btn-green" id="genBtn" onclick="doGenerate()" style="margin-top:20px" disabled>
           S&eacute;lectionne une image pour continuer
         </button>
         <button class="btn btn-back" onclick="backToSearch()">&#8592; Nouvelle recherche</button>
       </div>
 
-      <!-- STEP 3: Generate + Results -->
+      <!-- STEP 3: Progress + Results -->
       <div id="step3" class="hidden"></div>
     </div>
 
@@ -192,8 +203,7 @@
       var state = {};
       var ffmpegInstance = null;
       var ffmpegReady = false;
-
-      /* ── helpers ── */
+      var audioData = null;
 
       function esc(s) {
         if (!s) return "";
@@ -227,6 +237,7 @@
         var url = document.getElementById("url").value.trim();
         if (!url) return;
         document.getElementById("searchBtn").disabled = true;
+        audioData = null;
         showStatus("Recherche YouTube + Discogs...");
 
         fetch("/api/search", {
@@ -242,11 +253,83 @@
             state = data;
             state.selectedIdx = null;
             showStep2(data);
+            tryAutoAudio();
           })
           .catch(function(e) {
             document.getElementById("searchBtn").disabled = false;
             showError(e.message);
           });
+      }
+
+      /* ── Auto-download audio (try server, fallback to upload) ── */
+
+      function tryAutoAudio() {
+        var sec = document.getElementById("audioSection");
+        sec.innerHTML =
+          '<div class="section-title" style="margin-top:24px">Audio</div>' +
+          '<div class="progress-wrap" id="audioProgress">' +
+            '<span class="spinner"></span>' +
+            '<span class="status-text">T\u00e9l\u00e9chargement automatique de l\'audio...</span>' +
+          '</div>';
+
+        fetch("/api/audio", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ url: document.getElementById("url").value.trim() }),
+        })
+          .then(function(r) {
+            if (!r.ok) throw new Error("server");
+            return r.arrayBuffer();
+          })
+          .then(function(buf) {
+            audioData = new Uint8Array(buf);
+            sec.innerHTML =
+              '<div class="section-title" style="margin-top:24px">Audio</div>' +
+              '<div style="background:#1a2a1a;border:1px solid #2e7d32;border-radius:12px;padding:16px;text-align:center;color:#4caf50;font-size:14px">' +
+                'Audio t\u00e9l\u00e9charg\u00e9 automatiquement (' + (audioData.length / 1048576).toFixed(1) + ' MB)' +
+              '</div>';
+            checkReady();
+          })
+          .catch(function() {
+            showUploadZone();
+          });
+      }
+
+      function showUploadZone() {
+        var sec = document.getElementById("audioSection");
+        sec.innerHTML =
+          '<div class="section-title" style="margin-top:24px">Audio du morceau</div>' +
+          '<div class="dropzone" id="dropzone" onclick="document.getElementById(\'audioFile\').click()">' +
+            '<input type="file" id="audioFile" accept="audio/*,.mp3,.m4a,.wav,.ogg,.webm,.flac,.aac" />' +
+            '<div class="dropzone-icon">&#127925;</div>' +
+            '<div class="dropzone-text">' +
+              '<strong>Glisse ton fichier audio ici</strong><br>' +
+              'ou clique pour choisir (mp3, m4a, wav...)' +
+            '</div>' +
+            '<div class="dropzone-file" id="dropFileName"></div>' +
+          '</div>';
+
+        var dz = document.getElementById("dropzone");
+        var fi = document.getElementById("audioFile");
+
+        dz.addEventListener("dragover", function(e) { e.preventDefault(); dz.classList.add("dragover"); });
+        dz.addEventListener("dragleave", function() { dz.classList.remove("dragover"); });
+        dz.addEventListener("drop", function(e) {
+          e.preventDefault(); dz.classList.remove("dragover");
+          if (e.dataTransfer.files.length) handleAudioFile(e.dataTransfer.files[0]);
+        });
+        fi.addEventListener("change", function() {
+          if (fi.files.length) handleAudioFile(fi.files[0]);
+        });
+      }
+
+      function handleAudioFile(file) {
+        var name = document.getElementById("dropFileName");
+        name.textContent = file.name + " (" + (file.size / 1048576).toFixed(1) + " MB)";
+        file.arrayBuffer().then(function(buf) {
+          audioData = new Uint8Array(buf);
+          checkReady();
+        });
       }
 
       /* ── Step 2: Image selection ── */
@@ -278,10 +361,22 @@
         state.selectedIdx = idx;
         document.querySelectorAll(".img-card").forEach(function(c) { c.classList.remove("selected"); });
         document.querySelector('.img-card[data-idx="' + idx + '"]').classList.add("selected");
-        var btn = document.getElementById("genBtn");
-        btn.disabled = false;
-        btn.textContent = "G\u00e9n\u00e9rer les 3 slides";
         updateCaption(state, idx);
+        checkReady();
+      }
+
+      function checkReady() {
+        var btn = document.getElementById("genBtn");
+        if (state.selectedIdx !== null && audioData) {
+          btn.disabled = false;
+          btn.textContent = "G\u00e9n\u00e9rer les 3 slides";
+        } else if (state.selectedIdx !== null) {
+          btn.disabled = true;
+          btn.textContent = "Audio requis pour g\u00e9n\u00e9rer";
+        } else {
+          btn.disabled = true;
+          btn.textContent = "S\u00e9lectionne une image";
+        }
       }
 
       function updateCaption(data, idx) {
@@ -307,22 +402,20 @@
         });
       }
 
-      function backToSearch() { showStep("step1"); hideStatus(); }
+      function backToSearch() { showStep("step1"); hideStatus(); audioData = null; }
 
-      /* ── ffmpeg.wasm helpers ── */
+      /* ── ffmpeg.wasm ── */
 
       async function toBlobURL(url, mimeType) {
         var resp = await fetch(url);
         var buf = await resp.arrayBuffer();
-        var blob = new Blob([buf], { type: mimeType });
-        return URL.createObjectURL(blob);
+        return URL.createObjectURL(new Blob([buf], { type: mimeType }));
       }
 
-      async function loadFFmpeg(onLog) {
+      async function loadFFmpeg() {
         if (ffmpegReady) return;
         var mod = await import("https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.15/dist/esm/index.js");
         ffmpegInstance = new mod.FFmpeg();
-        ffmpegInstance.on("log", function(e) { if (onLog) onLog(e.message); });
 
         var base = "https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.10/dist/umd";
         await ffmpegInstance.load({
@@ -342,19 +435,15 @@
             var ctx = canvas.getContext("2d");
             ctx.fillStyle = "#000";
             ctx.fillRect(0, 0, 1080, 1080);
-
-            var size = 800;
-            var x = (1080 - size) / 2, y = (1080 - size) / 2;
+            var size = 800, x = 140, y = 140;
             ctx.save();
             ctx.beginPath();
             ctx.arc(x + size / 2, y + size / 2, size / 2, 0, Math.PI * 2);
             ctx.clip();
-
             var side = Math.min(img.width, img.height);
             var sx = (img.width - side) / 2, sy = (img.height - side) / 2;
             ctx.drawImage(img, sx, sy, side, side, x, y, size, size);
             ctx.restore();
-
             canvas.toBlob(function(blob) {
               blob ? resolve(blob) : reject(new Error("Canvas export failed"));
             }, "image/png");
@@ -364,10 +453,10 @@
         });
       }
 
-      /* ── Step 3: Generate slides ── */
+      /* ── Step 3: Generate ── */
 
       async function doGenerate() {
-        if (state.selectedIdx === null) return;
+        if (state.selectedIdx === null || !audioData) return;
 
         var duration = +(document.getElementById("duration").value) || 50;
         var startTime = +(document.getElementById("start").value) || 0;
@@ -382,30 +471,14 @@
           document.getElementById("step3").innerHTML =
             '<div class="progress-wrap">' +
               '<div class="spinner"></div>' +
-              '<div class="progress-label">' + esc(label) + '</div>' +
+              '<div class="progress-label" style="margin-top:12px">' + esc(label) + '</div>' +
               '<div class="progress-bar"><div class="progress-fill" style="width:' + pct + '%"></div></div>' +
             '</div>' +
             '<button class="btn btn-back" onclick="backToStep2()">&#8592; Annuler</button>';
         }
 
         try {
-          /* 1. Download audio */
-          setProgress("T\u00e9l\u00e9chargement audio...", 5);
-          var audioResp = await fetch("/api/audio", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ url: document.getElementById("url").value.trim() }),
-          });
-          if (!audioResp.ok) {
-            var err = await audioResp.json().catch(function() { return { error: "Erreur serveur" }; });
-            throw new Error(err.error || "Erreur t\u00e9l\u00e9chargement audio");
-          }
-          var audioBytes = new Uint8Array(await audioResp.arrayBuffer());
-          var audioMime = audioResp.headers.get("Content-Type") || "audio/mp4";
-          var audioExt = audioMime.includes("webm") ? "webm" : "m4a";
-
-          /* 2. Create vinyl image client-side */
-          setProgress("Cr\u00e9ation image vinyl...", 20);
+          setProgress("Cr\u00e9ation image vinyl...", 10);
           var vinylBlob;
           try {
             vinylBlob = await createVinylImage(selectedImg.url);
@@ -414,25 +487,22 @@
           }
           var vinylBytes = new Uint8Array(await vinylBlob.arrayBuffer());
 
-          /* 3. Load ffmpeg.wasm */
-          setProgress("Chargement moteur vid\u00e9o (31 MB, mis en cache apr\u00e8s)...", 30);
+          setProgress("Chargement moteur vid\u00e9o (31 MB, mis en cache)...", 20);
           await loadFFmpeg();
 
-          /* 4. Write files to virtual FS */
           await ffmpegInstance.writeFile("vinyl.png", vinylBytes);
-          await ffmpegInstance.writeFile("audio." + audioExt, audioBytes);
+          await ffmpegInstance.writeFile("audio.m4a", audioData);
 
-          /* 5. Generate each slide */
           var slides = [];
           for (var i = 0; i < slideCount; i++) {
             var segStart = startTime + i * duration;
             var outName = "slide_" + (i + 1) + ".mp4";
-            var pct = 35 + Math.round((i / slideCount) * 55);
+            var pct = 30 + Math.round((i / slideCount) * 60);
             setProgress("Cr\u00e9ation slide " + (i + 1) + "/" + slideCount + "...", pct);
 
             await ffmpegInstance.exec([
               "-loop", "1", "-i", "vinyl.png",
-              "-i", "audio." + audioExt,
+              "-i", "audio.m4a",
               "-ss", String(segStart), "-t", String(duration),
               "-c:v", "libx264", "-tune", "stillimage",
               "-c:a", "aac", "-b:a", "256k",
@@ -442,18 +512,17 @@
             ]);
 
             var data = await ffmpegInstance.readFile(outName);
-            var blob = new Blob([data.buffer], { type: "video/mp4" });
-            slides.push({ name: outName, url: URL.createObjectURL(blob) });
+            slides.push({
+              name: outName,
+              url: URL.createObjectURL(new Blob([data.buffer], { type: "video/mp4" })),
+            });
             await ffmpegInstance.deleteFile(outName);
           }
 
-          /* 6. Cleanup FS */
           await ffmpegInstance.deleteFile("vinyl.png");
-          await ffmpegInstance.deleteFile("audio." + audioExt);
+          await ffmpegInstance.deleteFile("audio.m4a");
 
-          /* 7. Show results */
           showResults(slides);
-
         } catch (e) {
           document.getElementById("step3").innerHTML =
             '<div class="progress-wrap"><div class="status-text error">' + esc(e.message) + '</div></div>' +
@@ -469,12 +538,9 @@
 
         h += '<video class="video-preview" controls autoplay muted playsinline src="' + slides[0].url + '"></video>';
 
-        h += '<button class="btn btn-bulk" onclick="bulkDownload()">' +
-             '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">' +
-             '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>' +
-             '<polyline points="7 10 12 15 17 10"/>' +
-             '<line x1="12" y1="15" x2="12" y2="3"/></svg>' +
-             'Tout t\u00e9l\u00e9charger (' + slides.length + ' slides)</button>';
+        h += '<button class="btn btn-bulk" onclick="bulkDownload()" style="margin-top:16px">' +
+             '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>' +
+             ' Tout t\u00e9l\u00e9charger (' + slides.length + ' slides)</button>';
 
         h += '<div class="slides-list">';
         slides.forEach(function(f, i) {
@@ -486,29 +552,25 @@
         });
         h += '</div>';
 
-        var img = state.selectedIdx !== null ? state.images[state.selectedIdx] : (state.images ? state.images[0] : {});
+        var img = state.images[state.selectedIdx] || {};
         var cap = "Artist: " + state.artist + "\nMusic: " + state.track + "\n";
-        if (img && img.label) cap += "Label: " + img.label + "\n";
-        if (img && img.year) cap += "Year: " + img.year + "\n";
+        if (img.label) cap += "Label: " + img.label + "\n";
+        if (img.year) cap += "Year: " + img.year + "\n";
         cap += "\n.\n.\n.\n\n#deephouse #funkyhouse #chicagohouse #house #garagehouse";
         window._cap = cap;
-
         h += '<div class="section-title" style="margin-top:24px">Caption Instagram</div>';
-        h += '<div class="caption-box" id="captionBoxResult">' +
+        h += '<div class="caption-box">' +
              '<button class="copy-btn" onclick="copyC()">Copier</button>' +
              esc(cap).replace(/#(\w+)/g, '<span class="ht">#$1</span>') + '</div>';
 
         h += '<button class="btn btn-back" style="margin-top:20px" onclick="backToSearch()">&#8592; Nouvelle recherche</button>';
-
         document.getElementById("step3").innerHTML = h;
       }
 
       function bulkDownload() {
-        if (!window._resultFiles) return;
-        window._resultFiles.forEach(function(f, i) {
+        (window._resultFiles || []).forEach(function(f, i) {
           setTimeout(function() {
-            var a = document.createElement("a");
-            a.href = f.url; a.download = f.name;
+            var a = document.createElement("a"); a.href = f.url; a.download = f.name;
             document.body.appendChild(a); a.click(); document.body.removeChild(a);
           }, i * 300);
         });
@@ -517,7 +579,7 @@
       function backToStep2() {
         showStep("step2");
         document.getElementById("genBtn").disabled = false;
-        document.getElementById("genBtn").textContent = "G\u00e9n\u00e9rer les 3 slides";
+        checkReady();
       }
     </script>
   </body>
