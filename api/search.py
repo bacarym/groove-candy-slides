@@ -118,31 +118,37 @@ def search_discogs(artist, track):
 
 
 class handler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        self._json({"status": "ok", "token_set": bool(DISCOGS_TOKEN)})
+
     def do_POST(self):
-        content_length = int(self.headers.get("Content-Length", 0))
-        body = json.loads(self.rfile.read(content_length))
-
-        url = body.get("url", "").strip()
-        if not url:
-            return self._json({"error": "Pas de lien YouTube fourni"}, 400)
-
         try:
-            meta = parse_youtube_oembed(url)
+            content_length = int(self.headers.get("Content-Length", 0))
+            body = json.loads(self.rfile.read(content_length))
+
+            url = body.get("url", "").strip()
+            if not url:
+                return self._json({"error": "Pas de lien YouTube fourni"}, 400)
+
+            try:
+                meta = parse_youtube_oembed(url)
+            except Exception as e:
+                return self._json({"error": f"Erreur YouTube: {e}"}, 400)
+
+            images = search_discogs(meta["artist"], meta["track"])
+
+            if not images:
+                return self._json({
+                    "error": f"Aucune image trouvée sur Discogs pour \"{meta['artist']} - {meta['track']}\"",
+                }, 404)
+
+            self._json({
+                "artist": meta["artist"],
+                "track": meta["track"],
+                "images": images,
+            })
         except Exception as e:
-            return self._json({"error": f"Erreur YouTube: {e}"}, 400)
-
-        images = search_discogs(meta["artist"], meta["track"])
-
-        if not images:
-            return self._json({
-                "error": f"Aucune image trouvée sur Discogs pour \"{meta['artist']} - {meta['track']}\"",
-            }, 404)
-
-        self._json({
-            "artist": meta["artist"],
-            "track": meta["track"],
-            "images": images,
-        })
+            self._json({"error": f"Internal error: {e}"}, 500)
 
     def do_OPTIONS(self):
         self.send_response(200)
