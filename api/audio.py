@@ -19,7 +19,7 @@ class handler(BaseHTTPRequestHandler):
             with tempfile.TemporaryDirectory() as tmp:
                 output_tpl = os.path.join(tmp, "audio.%(ext)s")
                 ydl_opts = {
-                    "format": "140/bestaudio[ext=m4a]/bestaudio",
+                    "format": "bestaudio",
                     "outtmpl": output_tpl,
                     "quiet": True,
                     "no_warnings": True,
