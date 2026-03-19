@@ -38,21 +38,20 @@ class handler(BaseHTTPRequestHandler):
                 cookie_file = _write_cookies(tmp)
 
                 base_opts = {
-                    "format": "140/bestaudio[ext=m4a]/bestaudio",
+                    "format": "bestaudio[ext=m4a]/bestaudio",
                     "outtmpl": tpl,
                     "quiet": True,
                     "no_warnings": True,
                     "noplaylist": True,
                     "postprocessors": [],
-                    "socket_timeout": 7,
+                    "socket_timeout": 8,
                 }
                 if cookie_file:
                     base_opts["cookiefile"] = cookie_file
 
                 strategies = [
                     {},
-                    {"extractor_args": {"youtube": {"player_client": ["mweb"]}}},
-                    {"extractor_args": {"youtube": {"player_client": ["android"]}}, "format": "bestaudio"},
+                    {"format": "bestaudio"},
                 ]
 
                 last_err = None
