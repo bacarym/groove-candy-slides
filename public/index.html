@@ -115,17 +115,6 @@
         border-radius: 3px; transition: width 0.4s ease;
       }
       .progress-label { color: #aaa; font-size: 14px; }
-      .dropzone {
-        border: 2px dashed #444; border-radius: 16px; padding: 40px 20px;
-        text-align: center; cursor: pointer; transition: all 0.25s;
-        margin-top: 20px; background: #111;
-      }
-      .dropzone:hover, .dropzone.dragover { border-color: #f5a623; background: #1a1a0a; }
-      .dropzone-icon { font-size: 36px; margin-bottom: 12px; }
-      .dropzone-text { color: #aaa; font-size: 15px; line-height: 1.6; }
-      .dropzone-text strong { color: #f5a623; }
-      .dropzone-file { color: #4caf50; font-size: 14px; margin-top: 8px; font-weight: 600; }
-      .dropzone input[type="file"] { display: none; }
       .slide-card {
         background: #1a1a1a; border-radius: 12px; padding: 16px;
         margin-bottom: 10px; display: flex; align-items: center; justify-content: space-between;
@@ -160,7 +149,7 @@
       <h1>Groove Candy</h1>
       <p class="subtitle">1 lien YouTube &#8594; 3 slides vid&eacute;o Instagram</p>
 
-      <!-- STEP 1: Search -->
+      <!-- STEP 1 -->
       <div id="step1">
         <div class="form-group">
           <label>Lien YouTube</label>
@@ -181,21 +170,20 @@
 
       <div id="status"></div>
 
-      <!-- STEP 2: Select image + audio -->
+      <!-- STEP 2 -->
       <div id="step2" class="hidden">
         <div id="metaBox"></div>
         <div class="section-title">Choisis l'image du macaron</div>
         <div class="img-grid" id="imgGrid"></div>
         <div class="section-title">Caption Instagram</div>
         <div class="caption-box" id="captionBox"></div>
-        <div id="audioSection"></div>
         <button class="btn btn-green" id="genBtn" onclick="doGenerate()" style="margin-top:20px" disabled>
           S&eacute;lectionne une image pour continuer
         </button>
         <button class="btn btn-back" onclick="backToSearch()">&#8592; Nouvelle recherche</button>
       </div>
 
-      <!-- STEP 3: Progress + Results -->
+      <!-- STEP 3 -->
       <div id="step3" class="hidden"></div>
     </div>
 
@@ -203,7 +191,6 @@
       var state = {};
       var ffmpegInstance = null;
       var ffmpegReady = false;
-      var audioData = null;
 
       function esc(s) {
         if (!s) return "";
@@ -220,8 +207,9 @@
       function showError(msg) {
         document.getElementById("status").innerHTML =
           '<span class="status-text error">' + esc(msg) + "</span>";
-        var sb = document.getElementById("searchBtn");
-        if (sb) sb.disabled = false;
+        document.getElementById("searchBtn").disabled = false;
+        var g = document.getElementById("genBtn");
+        if (g) g.disabled = false;
       }
 
       function showStep(id) {
@@ -231,13 +219,12 @@
         document.getElementById(id).classList.remove("hidden");
       }
 
-      /* ── Step 1: Search ── */
+      /* ── Step 1 — identical to local ── */
 
       function doSearch() {
         var url = document.getElementById("url").value.trim();
         if (!url) return;
         document.getElementById("searchBtn").disabled = true;
-        audioData = null;
         showStatus("Recherche YouTube + Discogs...");
 
         fetch("/api/search", {
@@ -253,7 +240,6 @@
             state = data;
             state.selectedIdx = null;
             showStep2(data);
-            tryAutoAudio();
           })
           .catch(function(e) {
             document.getElementById("searchBtn").disabled = false;
@@ -261,78 +247,7 @@
           });
       }
 
-      /* ── Auto-download audio (try server, fallback to upload) ── */
-
-      function tryAutoAudio() {
-        var sec = document.getElementById("audioSection");
-        sec.innerHTML =
-          '<div class="section-title" style="margin-top:24px">Audio</div>' +
-          '<div class="progress-wrap" id="audioProgress">' +
-            '<span class="spinner"></span>' +
-            '<span class="status-text">T\u00e9l\u00e9chargement automatique de l\'audio...</span>' +
-          '</div>';
-
-        fetch("/api/audio", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ url: document.getElementById("url").value.trim() }),
-        })
-          .then(function(r) {
-            if (!r.ok) throw new Error("server");
-            return r.arrayBuffer();
-          })
-          .then(function(buf) {
-            audioData = new Uint8Array(buf);
-            sec.innerHTML =
-              '<div class="section-title" style="margin-top:24px">Audio</div>' +
-              '<div style="background:#1a2a1a;border:1px solid #2e7d32;border-radius:12px;padding:16px;text-align:center;color:#4caf50;font-size:14px">' +
-                'Audio t\u00e9l\u00e9charg\u00e9 automatiquement (' + (audioData.length / 1048576).toFixed(1) + ' MB)' +
-              '</div>';
-            checkReady();
-          })
-          .catch(function() {
-            showUploadZone();
-          });
-      }
-
-      function showUploadZone() {
-        var sec = document.getElementById("audioSection");
-        sec.innerHTML =
-          '<div class="section-title" style="margin-top:24px">Audio du morceau</div>' +
-          '<div class="dropzone" id="dropzone" onclick="document.getElementById(\'audioFile\').click()">' +
-            '<input type="file" id="audioFile" accept="audio/*,.mp3,.m4a,.wav,.ogg,.webm,.flac,.aac" />' +
-            '<div class="dropzone-icon">&#127925;</div>' +
-            '<div class="dropzone-text">' +
-              '<strong>Glisse ton fichier audio ici</strong><br>' +
-              'ou clique pour choisir (mp3, m4a, wav...)' +
-            '</div>' +
-            '<div class="dropzone-file" id="dropFileName"></div>' +
-          '</div>';
-
-        var dz = document.getElementById("dropzone");
-        var fi = document.getElementById("audioFile");
-
-        dz.addEventListener("dragover", function(e) { e.preventDefault(); dz.classList.add("dragover"); });
-        dz.addEventListener("dragleave", function() { dz.classList.remove("dragover"); });
-        dz.addEventListener("drop", function(e) {
-          e.preventDefault(); dz.classList.remove("dragover");
-          if (e.dataTransfer.files.length) handleAudioFile(e.dataTransfer.files[0]);
-        });
-        fi.addEventListener("change", function() {
-          if (fi.files.length) handleAudioFile(fi.files[0]);
-        });
-      }
-
-      function handleAudioFile(file) {
-        var name = document.getElementById("dropFileName");
-        name.textContent = file.name + " (" + (file.size / 1048576).toFixed(1) + " MB)";
-        file.arrayBuffer().then(function(buf) {
-          audioData = new Uint8Array(buf);
-          checkReady();
-        });
-      }
-
-      /* ── Step 2: Image selection ── */
+      /* ── Step 2 — identical to local ── */
 
       function showStep2(data) {
         showStep("step2");
@@ -354,29 +269,17 @@
             '<div class="img-label">' + esc(img.label || img.type) + '</div>';
           grid.appendChild(card);
         });
-        updateCaption(data, 0);
+        updateCaption(data, null);
       }
 
       function selectImage(idx) {
         state.selectedIdx = idx;
         document.querySelectorAll(".img-card").forEach(function(c) { c.classList.remove("selected"); });
         document.querySelector('.img-card[data-idx="' + idx + '"]').classList.add("selected");
-        updateCaption(state, idx);
-        checkReady();
-      }
-
-      function checkReady() {
         var btn = document.getElementById("genBtn");
-        if (state.selectedIdx !== null && audioData) {
-          btn.disabled = false;
-          btn.textContent = "G\u00e9n\u00e9rer les 3 slides";
-        } else if (state.selectedIdx !== null) {
-          btn.disabled = true;
-          btn.textContent = "Audio requis pour g\u00e9n\u00e9rer";
-        } else {
-          btn.disabled = true;
-          btn.textContent = "S\u00e9lectionne une image";
-        }
+        btn.disabled = false;
+        btn.textContent = "G\u00e9n\u00e9rer les slides";
+        updateCaption(state, idx);
       }
 
       function updateCaption(data, idx) {
@@ -388,7 +291,6 @@
         cap += "\n.\n.\n.\n\n";
         cap += "#deephouse #funkyhouse #chicagohouse #house #garagehouse";
         window._cap = cap;
-
         document.getElementById("captionBox").innerHTML =
           '<button class="copy-btn" onclick="copyC()">Copier</button>' +
           esc(cap).replace(/#(\w+)/g, '<span class="ht">#$1</span>');
@@ -402,9 +304,9 @@
         });
       }
 
-      function backToSearch() { showStep("step1"); hideStatus(); audioData = null; }
+      function backToSearch() { showStep("step1"); hideStatus(); }
 
-      /* ── ffmpeg.wasm ── */
+      /* ── ffmpeg.wasm helpers ── */
 
       async function toBlobURL(url, mimeType) {
         var resp = await fetch(url);
@@ -416,7 +318,6 @@
         if (ffmpegReady) return;
         var mod = await import("https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.15/dist/esm/index.js");
         ffmpegInstance = new mod.FFmpeg();
-
         var base = "https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.10/dist/umd";
         await ffmpegInstance.load({
           coreURL: await toBlobURL(base + "/ffmpeg-core.js", "text/javascript"),
@@ -453,10 +354,10 @@
         });
       }
 
-      /* ── Step 3: Generate ── */
+      /* ── Step 3 — Generate (same pipeline as local run_pipeline) ── */
 
       async function doGenerate() {
-        if (state.selectedIdx === null || !audioData) return;
+        if (state.selectedIdx === null) return;
 
         var duration = +(document.getElementById("duration").value) || 50;
         var startTime = +(document.getElementById("start").value) || 0;
@@ -473,12 +374,25 @@
               '<div class="spinner"></div>' +
               '<div class="progress-label" style="margin-top:12px">' + esc(label) + '</div>' +
               '<div class="progress-bar"><div class="progress-fill" style="width:' + pct + '%"></div></div>' +
-            '</div>' +
-            '<button class="btn btn-back" onclick="backToStep2()">&#8592; Annuler</button>';
+            '</div>';
         }
 
         try {
-          setProgress("Cr\u00e9ation image vinyl...", 10);
+          /* 1. Download audio — same as local download_audio() */
+          setProgress("T\u00e9l\u00e9chargement audio \u2014 " + state.artist + " - " + state.track + "...", 5);
+          var audioResp = await fetch("/api/audio", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ url: document.getElementById("url").value.trim() }),
+          });
+          if (!audioResp.ok) {
+            var errData = await audioResp.json().catch(function() { return {}; });
+            throw new Error(errData.error || "Erreur t\u00e9l\u00e9chargement audio");
+          }
+          var audioData = new Uint8Array(await audioResp.arrayBuffer());
+
+          /* 2. Create vinyl image — same as local make_vinyl_image() */
+          setProgress("Cr\u00e9ation de l'image vinyl...", 15);
           var vinylBlob;
           try {
             vinylBlob = await createVinylImage(selectedImg.url);
@@ -487,9 +401,11 @@
           }
           var vinylBytes = new Uint8Array(await vinylBlob.arrayBuffer());
 
-          setProgress("Chargement moteur vid\u00e9o (31 MB, mis en cache)...", 20);
+          /* 3. Load video engine */
+          setProgress("Chargement moteur vid\u00e9o...", 25);
           await loadFFmpeg();
 
+          /* 4. Generate slides — same as local generate_slides() */
           await ffmpegInstance.writeFile("vinyl.png", vinylBytes);
           await ffmpegInstance.writeFile("audio.m4a", audioData);
 
@@ -497,8 +413,8 @@
           for (var i = 0; i < slideCount; i++) {
             var segStart = startTime + i * duration;
             var outName = "slide_" + (i + 1) + ".mp4";
-            var pct = 30 + Math.round((i / slideCount) * 60);
-            setProgress("Cr\u00e9ation slide " + (i + 1) + "/" + slideCount + "...", pct);
+            var pct = 30 + Math.round(((i + 1) / slideCount) * 65);
+            setProgress("G\u00e9n\u00e9ration slide " + (i + 1) + "/" + slideCount + "...", pct);
 
             await ffmpegInstance.exec([
               "-loop", "1", "-i", "vinyl.png",
@@ -523,12 +439,15 @@
           await ffmpegInstance.deleteFile("audio.m4a");
 
           showResults(slides);
+
         } catch (e) {
           document.getElementById("step3").innerHTML =
             '<div class="progress-wrap"><div class="status-text error">' + esc(e.message) + '</div></div>' +
             '<button class="btn btn-back" onclick="backToStep2()">&#8592; Retour</button>';
         }
       }
+
+      /* ── Results — identical to local showStep3 ── */
 
       function showResults(slides) {
         window._resultFiles = slides;
@@ -552,12 +471,13 @@
         });
         h += '</div>';
 
-        var img = state.images[state.selectedIdx] || {};
+        var img = state.selectedIdx !== null ? state.images[state.selectedIdx] : (state.images ? state.images[0] : {});
         var cap = "Artist: " + state.artist + "\nMusic: " + state.track + "\n";
-        if (img.label) cap += "Label: " + img.label + "\n";
-        if (img.year) cap += "Year: " + img.year + "\n";
+        if (img && img.label) cap += "Label: " + img.label + "\n";
+        if (img && img.year) cap += "Year: " + img.year + "\n";
         cap += "\n.\n.\n.\n\n#deephouse #funkyhouse #chicagohouse #house #garagehouse";
         window._cap = cap;
+
         h += '<div class="section-title" style="margin-top:24px">Caption Instagram</div>';
         h += '<div class="caption-box">' +
              '<button class="copy-btn" onclick="copyC()">Copier</button>' +
@@ -579,7 +499,7 @@
       function backToStep2() {
         showStep("step2");
         document.getElementById("genBtn").disabled = false;
-        checkReady();
+        document.getElementById("genBtn").textContent = "G\u00e9n\u00e9rer les slides";
       }
     </script>
   </body>
