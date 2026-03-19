@@ -1,27 +1,28 @@
-"""Download YouTube audio via yt-dlp with multi-strategy fallback."""
+"""Download YouTube audio via yt-dlp with cookie support for cloud IPs."""
 
 from http.server import BaseHTTPRequestHandler
+import base64
 import json
 import os
 import tempfile
 
 import yt_dlp
 
+YT_COOKIES_B64 = os.environ.get("YT_COOKIES", "")
 
-def _try_download(url, output_tpl, extra_opts=None):
-    opts = {
-        "format": "140/bestaudio[ext=m4a]/bestaudio",
-        "outtmpl": output_tpl,
-        "quiet": True,
-        "no_warnings": True,
-        "noplaylist": True,
-        "postprocessors": [],
-        "socket_timeout": 7,
-    }
-    if extra_opts:
-        opts.update(extra_opts)
-    with yt_dlp.YoutubeDL(opts) as ydl:
-        ydl.download([url])
+
+def _write_cookies(tmp_dir):
+    """Decode YT_COOKIES env var (base64 Netscape format) to a temp file."""
+    if not YT_COOKIES_B64:
+        return None
+    try:
+        raw = base64.b64decode(YT_COOKIES_B64)
+        path = os.path.join(tmp_dir, "cookies.txt")
+        with open(path, "wb") as f:
+            f.write(raw)
+        return path
+    except Exception:
+        return None
 
 
 class handler(BaseHTTPRequestHandler):
@@ -34,6 +35,19 @@ class handler(BaseHTTPRequestHandler):
 
             with tempfile.TemporaryDirectory() as tmp:
                 tpl = os.path.join(tmp, "audio.%(ext)s")
+                cookie_file = _write_cookies(tmp)
+
+                base_opts = {
+                    "format": "140/bestaudio[ext=m4a]/bestaudio",
+                    "outtmpl": tpl,
+                    "quiet": True,
+                    "no_warnings": True,
+                    "noplaylist": True,
+                    "postprocessors": [],
+                    "socket_timeout": 7,
+                }
+                if cookie_file:
+                    base_opts["cookiefile"] = cookie_file
 
                 strategies = [
                     {},
@@ -44,12 +58,15 @@ class handler(BaseHTTPRequestHandler):
                 last_err = None
                 for strat in strategies:
                     try:
-                        _try_download(url, tpl, strat)
+                        opts = {**base_opts, **strat}
+                        with yt_dlp.YoutubeDL(opts) as ydl:
+                            ydl.download([url])
                         break
                     except Exception as e:
                         last_err = e
                         for f in os.listdir(tmp):
-                            os.remove(os.path.join(tmp, f))
+                            if f.startswith("audio."):
+                                os.remove(os.path.join(tmp, f))
                         continue
                 else:
                     raise last_err
