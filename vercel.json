@@ -1,3 +1,5 @@
 {
-  "framework": null
+  "framework": null,
+  "buildCommand": "echo done",
+  "outputDirectory": "public"
 }
