@@ -6,296 +6,155 @@
     <title>Groove Candy Slide Maker</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🍬</text></svg>">
     <style>
-      * {
-        margin: 0;
-        padding: 0;
-        box-sizing: border-box;
-      }
+      * { margin: 0; padding: 0; box-sizing: border-box; }
       body {
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-        background: #0a0a0a;
-        color: #fff;
-        min-height: 100vh;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
+        background: #0a0a0a; color: #fff;
+        min-height: 100vh; display: flex; flex-direction: column; align-items: center;
       }
-      .container {
-        max-width: 640px;
-        width: 100%;
-        padding: 40px 20px;
-      }
+      .container { max-width: 640px; width: 100%; padding: 40px 20px; }
       h1 {
-        text-align: center;
-        font-size: 28px;
-        margin-bottom: 8px;
+        text-align: center; font-size: 28px; margin-bottom: 8px;
         background: linear-gradient(135deg, #f5a623, #e74c8b);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
+        -webkit-background-clip: text; -webkit-text-fill-color: transparent;
       }
-      .subtitle {
-        text-align: center;
-        color: #888;
-        font-size: 14px;
-        margin-bottom: 40px;
-      }
-      .form-group {
-        margin-bottom: 20px;
-      }
+      .subtitle { text-align: center; color: #888; font-size: 14px; margin-bottom: 40px; }
+      .form-group { margin-bottom: 20px; }
       label {
-        display: block;
-        font-size: 13px;
-        color: #aaa;
-        margin-bottom: 6px;
-        text-transform: uppercase;
-        letter-spacing: 1px;
+        display: block; font-size: 13px; color: #aaa; margin-bottom: 6px;
+        text-transform: uppercase; letter-spacing: 1px;
       }
-      input[type="text"],
-      input[type="number"] {
-        width: 100%;
-        padding: 14px 16px;
-        background: #1a1a1a;
-        border: 1px solid #333;
-        border-radius: 10px;
-        color: #fff;
-        font-size: 16px;
-        outline: none;
-        transition: border-color 0.2s;
+      input[type="text"], input[type="number"] {
+        width: 100%; padding: 14px 16px; background: #1a1a1a;
+        border: 1px solid #333; border-radius: 10px; color: #fff;
+        font-size: 16px; outline: none; transition: border-color 0.2s;
       }
-      input:focus {
-        border-color: #f5a623;
-      }
-      .row {
-        display: flex;
-        gap: 12px;
-      }
-      .row .form-group {
-        flex: 1;
-      }
+      input:focus { border-color: #f5a623; }
+      .row { display: flex; gap: 12px; }
+      .row .form-group { flex: 1; }
       .btn {
-        width: 100%;
-        padding: 16px;
+        width: 100%; padding: 16px;
         background: linear-gradient(135deg, #f5a623, #e74c8b);
-        border: none;
-        border-radius: 10px;
-        color: #fff;
-        font-size: 18px;
-        font-weight: 600;
-        cursor: pointer;
-        margin-top: 10px;
-        transition: opacity 0.2s;
+        border: none; border-radius: 10px; color: #fff;
+        font-size: 18px; font-weight: 600; cursor: pointer;
+        margin-top: 10px; transition: opacity 0.2s;
       }
-      .btn:hover {
-        opacity: 0.9;
-      }
-      .btn:disabled {
-        opacity: 0.5;
-        cursor: not-allowed;
-      }
-      .btn-green {
-        background: linear-gradient(135deg, #4caf50, #2e7d32);
-      }
-      .btn-back {
-        margin-top: 10px;
-        background: #333;
-        font-size: 14px;
-      }
-      #status {
-        margin-top: 30px;
-        text-align: center;
-      }
+      .btn:hover { opacity: 0.9; }
+      .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+      .btn-green { background: linear-gradient(135deg, #4caf50, #2e7d32); }
+      .btn-back { margin-top: 10px; background: #333; font-size: 14px; }
+      #status { margin-top: 30px; text-align: center; }
       .spinner {
-        display: inline-block;
-        width: 24px;
-        height: 24px;
-        border: 3px solid #333;
-        border-top-color: #f5a623;
-        border-radius: 50%;
-        animation: spin 0.8s linear infinite;
-        margin-right: 10px;
-        vertical-align: middle;
+        display: inline-block; width: 24px; height: 24px;
+        border: 3px solid #333; border-top-color: #f5a623;
+        border-radius: 50%; animation: spin 0.8s linear infinite;
+        margin-right: 10px; vertical-align: middle;
       }
-      @keyframes spin {
-        to {
-          transform: rotate(360deg);
-        }
-      }
-      .status-text {
-        color: #aaa;
-        font-size: 15px;
-        vertical-align: middle;
-      }
-      .error {
-        color: #ff4444;
-      }
+      @keyframes spin { to { transform: rotate(360deg); } }
+      .status-text { color: #aaa; font-size: 15px; vertical-align: middle; }
+      .error { color: #ff4444; }
       .section-title {
-        font-size: 13px;
-        color: #888;
-        text-transform: uppercase;
-        letter-spacing: 1px;
-        margin-bottom: 12px;
-        margin-top: 28px;
+        font-size: 13px; color: #888; text-transform: uppercase;
+        letter-spacing: 1px; margin-bottom: 12px; margin-top: 28px;
       }
-      .img-grid {
-        display: grid;
-        grid-template-columns: repeat(3, 1fr);
-        gap: 10px;
-        margin-bottom: 20px;
-      }
+      .img-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 20px; }
       .img-card {
-        position: relative;
-        cursor: pointer;
-        border-radius: 10px;
-        overflow: hidden;
-        border: 3px solid transparent;
-        transition:
-          border-color 0.2s,
-          transform 0.15s;
+        position: relative; cursor: pointer; border-radius: 10px; overflow: hidden;
+        border: 3px solid transparent; transition: border-color 0.2s, transform 0.15s;
         aspect-ratio: 1;
       }
-      .img-card:hover {
-        transform: scale(1.03);
-      }
-      .img-card.selected {
-        border-color: #f5a623;
-      }
-      .img-card img {
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-        display: block;
-      }
+      .img-card:hover { transform: scale(1.03); }
+      .img-card.selected { border-color: #f5a623; }
+      .img-card img { width: 100%; height: 100%; object-fit: cover; display: block; }
       .img-badge {
-        position: absolute;
-        top: 6px;
-        right: 6px;
-        background: rgba(0, 0, 0, 0.75);
-        color: #f5a623;
-        font-size: 10px;
-        padding: 2px 6px;
-        border-radius: 4px;
-        font-weight: 600;
+        position: absolute; top: 6px; right: 6px;
+        background: rgba(0,0,0,0.75); color: #f5a623;
+        font-size: 10px; padding: 2px 6px; border-radius: 4px; font-weight: 600;
       }
       .img-label {
-        position: absolute;
-        bottom: 0;
-        left: 0;
-        right: 0;
-        background: rgba(0, 0, 0, 0.7);
-        color: #ccc;
-        font-size: 10px;
-        padding: 4px 6px;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
+        position: absolute; bottom: 0; left: 0; right: 0;
+        background: rgba(0,0,0,0.7); color: #ccc; font-size: 10px;
+        padding: 4px 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
       }
       .img-check {
-        position: absolute;
-        top: 6px;
-        left: 6px;
-        width: 22px;
-        height: 22px;
-        border-radius: 50%;
-        background: #f5a623;
-        display: none;
-        align-items: center;
-        justify-content: center;
-        font-size: 14px;
-        color: #000;
-        font-weight: bold;
+        position: absolute; top: 6px; left: 6px; width: 22px; height: 22px;
+        border-radius: 50%; background: #f5a623; display: none;
+        align-items: center; justify-content: center;
+        font-size: 14px; color: #000; font-weight: bold;
       }
-      .img-card.selected .img-check {
-        display: flex;
-      }
+      .img-card.selected .img-check { display: flex; }
       .meta-info {
-        background: #1a1a1a;
-        border-radius: 12px;
-        padding: 16px;
-        margin-bottom: 8px;
-        text-align: center;
+        background: #1a1a1a; border-radius: 12px; padding: 16px;
+        margin-bottom: 8px; text-align: center;
       }
-      .meta-artist {
-        font-size: 20px;
-        font-weight: 700;
-      }
-      .meta-track {
-        color: #aaa;
-        font-size: 15px;
-        margin-top: 4px;
-      }
+      .meta-artist { font-size: 20px; font-weight: 700; }
+      .meta-track { color: #aaa; font-size: 15px; margin-top: 4px; }
       .caption-box {
-        background: #1a1a1a;
-        border: 1px solid #333;
-        border-radius: 12px;
-        padding: 20px 16px 16px;
-        white-space: pre-wrap;
-        font-size: 14px;
-        line-height: 1.6;
-        color: #ddd;
-        position: relative;
+        background: #1a1a1a; border: 1px solid #333; border-radius: 12px;
+        padding: 20px 16px 16px; white-space: pre-wrap;
+        font-size: 14px; line-height: 1.6; color: #ddd; position: relative;
       }
-      .caption-box .ht {
-        color: #6b8afd;
-      }
+      .caption-box .ht { color: #6b8afd; }
       .copy-btn {
-        position: absolute;
-        top: 10px;
-        right: 10px;
-        padding: 6px 14px;
-        background: #333;
-        border: 1px solid #555;
-        border-radius: 6px;
-        color: #f5a623;
-        font-size: 12px;
-        cursor: pointer;
-        transition: background 0.2s;
+        position: absolute; top: 10px; right: 10px; padding: 6px 14px;
+        background: #333; border: 1px solid #555; border-radius: 6px;
+        color: #f5a623; font-size: 12px; cursor: pointer; transition: background 0.2s;
       }
-      .copy-btn:hover {
-        background: #444;
+      .copy-btn:hover { background: #444; }
+      .copy-btn.ok { color: #4caf50; border-color: #4caf50; }
+      .progress-wrap {
+        background: #1a1a1a; border-radius: 12px; padding: 30px 20px;
+        text-align: center; margin-top: 20px;
       }
-      .copy-btn.ok {
-        color: #4caf50;
-        border-color: #4caf50;
+      .progress-bar {
+        width: 100%; height: 6px; background: #333;
+        border-radius: 3px; margin: 16px 0 12px; overflow: hidden;
       }
-      .info-box {
-        background: #1a1a1a;
-        border: 1px solid #333;
-        border-radius: 12px;
-        padding: 20px;
-        margin-top: 20px;
-        text-align: center;
-        color: #aaa;
-        font-size: 14px;
-        line-height: 1.6;
+      .progress-fill {
+        height: 100%; background: linear-gradient(90deg, #f5a623, #e74c8b);
+        border-radius: 3px; transition: width 0.4s ease;
       }
-      .info-box code {
-        background: #222;
-        padding: 4px 10px;
-        border-radius: 6px;
-        color: #f5a623;
-        font-size: 13px;
+      .progress-label { color: #aaa; font-size: 14px; }
+      .slide-card {
+        background: #1a1a1a; border-radius: 12px; padding: 16px;
+        margin-bottom: 10px; display: flex; align-items: center; justify-content: space-between;
       }
-      .hidden {
-        display: none;
+      .slide-info { display: flex; align-items: center; gap: 12px; }
+      .slide-icon {
+        width: 44px; height: 44px; background: #222; border-radius: 8px;
+        display: flex; align-items: center; justify-content: center; font-size: 20px;
       }
+      .slide-name { font-weight: 600; }
+      .slide-detail { color: #888; font-size: 13px; margin-top: 2px; }
+      .dl-btn {
+        padding: 8px 18px; background: #222; border: 1px solid #444;
+        border-radius: 8px; color: #f5a623; text-decoration: none;
+        font-size: 14px; font-weight: 500; transition: background 0.2s; cursor: pointer;
+      }
+      .dl-btn:hover { background: #333; }
+      .video-preview {
+        width: 100%; max-width: 320px; margin: 16px auto;
+        display: block; border-radius: 12px; background: #111;
+      }
+      .btn-bulk {
+        background: linear-gradient(135deg, #6b8afd, #4c5fd7);
+        display: flex; align-items: center; justify-content: center; gap: 10px;
+      }
+      .btn-bulk svg { flex-shrink: 0; }
+      .slides-list { margin-top: 16px; }
+      .hidden { display: none; }
     </style>
   </head>
   <body>
     <div class="container">
       <h1>Groove Candy</h1>
-      <p class="subtitle">
-        1 lien YouTube &#8594; images vinyl + caption Instagram
-      </p>
+      <p class="subtitle">1 lien YouTube &#8594; 3 slides vid&eacute;o Instagram</p>
 
-      <!-- STEP 1 -->
+      <!-- STEP 1: Search -->
       <div id="step1">
         <div class="form-group">
           <label>Lien YouTube</label>
-          <input
-            type="text"
-            id="url"
-            placeholder="https://youtube.com/watch?v=..."
-          />
+          <input type="text" id="url" placeholder="https://youtube.com/watch?v=..." />
         </div>
         <div class="row">
           <div class="form-group">
@@ -307,32 +166,62 @@
             <input type="number" id="start" value="0" min="0" />
           </div>
         </div>
-        <button class="btn" id="searchBtn" onclick="doSearch()">
-          Rechercher
-        </button>
+        <button class="btn" id="searchBtn" onclick="doSearch()">Rechercher</button>
       </div>
 
       <div id="status"></div>
 
-      <!-- STEP 2 -->
+      <!-- STEP 2: Select image -->
       <div id="step2" class="hidden">
         <div id="metaBox"></div>
         <div class="section-title">Choisis l'image du macaron</div>
         <div class="img-grid" id="imgGrid"></div>
         <div class="section-title">Caption Instagram</div>
         <div class="caption-box" id="captionBox"></div>
-        <div class="info-box">
-          Pour g&eacute;n&eacute;rer les 3 slides vid&eacute;o, lance en local :<br />
-          <code>python app.py</code>
-        </div>
-        <button class="btn btn-back" onclick="backToSearch()">
-          &#8592; Nouvelle recherche
+        <button class="btn btn-green" id="genBtn" onclick="doGenerate()" style="margin-top:20px" disabled>
+          S&eacute;lectionne une image pour continuer
         </button>
+        <button class="btn btn-back" onclick="backToSearch()">&#8592; Nouvelle recherche</button>
       </div>
+
+      <!-- STEP 3: Generate + Results -->
+      <div id="step3" class="hidden"></div>
     </div>
 
     <script>
       var state = {};
+      var ffmpegInstance = null;
+      var ffmpegReady = false;
+
+      /* ── helpers ── */
+
+      function esc(s) {
+        if (!s) return "";
+        var d = document.createElement("div");
+        d.textContent = String(s);
+        return d.innerHTML;
+      }
+
+      function showStatus(msg) {
+        document.getElementById("status").innerHTML =
+          '<span class="spinner"></span><span class="status-text">' + esc(msg) + "</span>";
+      }
+      function hideStatus() { document.getElementById("status").innerHTML = ""; }
+      function showError(msg) {
+        document.getElementById("status").innerHTML =
+          '<span class="status-text error">' + esc(msg) + "</span>";
+        var sb = document.getElementById("searchBtn");
+        if (sb) sb.disabled = false;
+      }
+
+      function showStep(id) {
+        ["step1","step2","step3"].forEach(function(s) {
+          document.getElementById(s).classList.add("hidden");
+        });
+        document.getElementById(id).classList.remove("hidden");
+      }
+
+      /* ── Step 1: Search ── */
 
       function doSearch() {
         var url = document.getElementById("url").value.trim();
@@ -345,71 +234,53 @@
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ url: url }),
         })
-          .then(function (r) {
-            return r.json();
-          })
-          .then(function (data) {
+          .then(function(r) { return r.json(); })
+          .then(function(data) {
             document.getElementById("searchBtn").disabled = false;
             hideStatus();
-            if (data.error) {
-              showError(data.error);
-              return;
-            }
+            if (data.error) { showError(data.error); return; }
             state = data;
             state.selectedIdx = null;
             showStep2(data);
           })
-          .catch(function (e) {
+          .catch(function(e) {
             document.getElementById("searchBtn").disabled = false;
             showError(e.message);
           });
       }
 
-      function showStep2(data) {
-        document.getElementById("step1").classList.add("hidden");
-        document.getElementById("step2").classList.remove("hidden");
+      /* ── Step 2: Image selection ── */
 
+      function showStep2(data) {
+        showStep("step2");
         document.getElementById("metaBox").innerHTML =
-          '<div class="meta-info"><div class="meta-artist">' +
-          esc(data.artist) +
-          '</div><div class="meta-track">' +
-          esc(data.track) +
-          "</div></div>";
+          '<div class="meta-info"><div class="meta-artist">' + esc(data.artist) +
+          '</div><div class="meta-track">' + esc(data.track) + "</div></div>";
 
         var grid = document.getElementById("imgGrid");
         grid.innerHTML = "";
-        data.images.forEach(function (img, i) {
+        data.images.forEach(function(img, i) {
           var card = document.createElement("div");
           card.className = "img-card";
           card.setAttribute("data-idx", i);
-          card.onclick = function () {
-            selectImage(i);
-          };
+          card.onclick = function() { selectImage(i); };
           card.innerHTML =
-            '<img src="' +
-            esc(img.thumb) +
-            '" loading="lazy" />' +
+            '<img src="' + esc(img.thumb) + '" loading="lazy" />' +
             '<div class="img-check">&#10003;</div>' +
-            '<div class="img-badge">' +
-            img.score +
-            "</div>" +
-            '<div class="img-label">' +
-            esc(img.label || img.type) +
-            "</div>";
+            '<div class="img-badge">' + img.score + '</div>' +
+            '<div class="img-label">' + esc(img.label || img.type) + '</div>';
           grid.appendChild(card);
         });
-
         updateCaption(data, 0);
       }
 
       function selectImage(idx) {
         state.selectedIdx = idx;
-        document.querySelectorAll(".img-card").forEach(function (c) {
-          c.classList.remove("selected");
-        });
-        document
-          .querySelector('.img-card[data-idx="' + idx + '"]')
-          .classList.add("selected");
+        document.querySelectorAll(".img-card").forEach(function(c) { c.classList.remove("selected"); });
+        document.querySelector('.img-card[data-idx="' + idx + '"]').classList.add("selected");
+        var btn = document.getElementById("genBtn");
+        btn.disabled = false;
+        btn.textContent = "G\u00e9n\u00e9rer les 3 slides";
         updateCaption(state, idx);
       }
 
@@ -423,50 +294,230 @@
         cap += "#deephouse #funkyhouse #chicagohouse #house #garagehouse";
         window._cap = cap;
 
-        var box = document.getElementById("captionBox");
-        box.innerHTML =
+        document.getElementById("captionBox").innerHTML =
           '<button class="copy-btn" onclick="copyC()">Copier</button>' +
           esc(cap).replace(/#(\w+)/g, '<span class="ht">#$1</span>');
       }
 
-      function backToSearch() {
-        document.getElementById("step1").classList.remove("hidden");
-        document.getElementById("step2").classList.add("hidden");
-        hideStatus();
-      }
-
       function copyC() {
-        navigator.clipboard.writeText(window._cap).then(function () {
+        navigator.clipboard.writeText(window._cap).then(function() {
           var b = document.querySelector(".copy-btn");
-          b.textContent = "Copi\u00e9 !";
-          b.classList.add("ok");
-          setTimeout(function () {
-            b.textContent = "Copier";
-            b.classList.remove("ok");
-          }, 2000);
+          b.textContent = "Copi\u00e9 !"; b.classList.add("ok");
+          setTimeout(function() { b.textContent = "Copier"; b.classList.remove("ok"); }, 2000);
         });
       }
 
-      function showStatus(msg) {
-        document.getElementById("status").innerHTML =
-          '<span class="spinner"></span><span class="status-text">' +
-          esc(msg) +
-          "</span>";
-      }
-      function hideStatus() {
-        document.getElementById("status").innerHTML = "";
-      }
-      function showError(msg) {
-        document.getElementById("status").innerHTML =
-          '<span class="status-text error">' + esc(msg) + "</span>";
-        document.getElementById("searchBtn").disabled = false;
+      function backToSearch() { showStep("step1"); hideStatus(); }
+
+      /* ── ffmpeg.wasm helpers ── */
+
+      async function toBlobURL(url, mimeType) {
+        var resp = await fetch(url);
+        var buf = await resp.arrayBuffer();
+        var blob = new Blob([buf], { type: mimeType });
+        return URL.createObjectURL(blob);
       }
 
-      function esc(s) {
-        if (!s) return "";
-        var d = document.createElement("div");
-        d.textContent = String(s);
-        return d.innerHTML;
+      async function loadFFmpeg(onLog) {
+        if (ffmpegReady) return;
+        var mod = await import("https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.15/dist/esm/index.js");
+        ffmpegInstance = new mod.FFmpeg();
+        ffmpegInstance.on("log", function(e) { if (onLog) onLog(e.message); });
+
+        var base = "https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.10/dist/umd";
+        await ffmpegInstance.load({
+          coreURL: await toBlobURL(base + "/ffmpeg-core.js", "text/javascript"),
+          wasmURL: await toBlobURL(base + "/ffmpeg-core.wasm", "application/wasm"),
+        });
+        ffmpegReady = true;
+      }
+
+      function createVinylImage(imgUrl) {
+        return new Promise(function(resolve, reject) {
+          var img = new Image();
+          img.crossOrigin = "anonymous";
+          img.onload = function() {
+            var canvas = document.createElement("canvas");
+            canvas.width = 1080; canvas.height = 1080;
+            var ctx = canvas.getContext("2d");
+            ctx.fillStyle = "#000";
+            ctx.fillRect(0, 0, 1080, 1080);
+
+            var size = 800;
+            var x = (1080 - size) / 2, y = (1080 - size) / 2;
+            ctx.save();
+            ctx.beginPath();
+            ctx.arc(x + size / 2, y + size / 2, size / 2, 0, Math.PI * 2);
+            ctx.clip();
+
+            var side = Math.min(img.width, img.height);
+            var sx = (img.width - side) / 2, sy = (img.height - side) / 2;
+            ctx.drawImage(img, sx, sy, side, side, x, y, size, size);
+            ctx.restore();
+
+            canvas.toBlob(function(blob) {
+              blob ? resolve(blob) : reject(new Error("Canvas export failed"));
+            }, "image/png");
+          };
+          img.onerror = function() { reject(new Error("Image load failed")); };
+          img.src = imgUrl;
+        });
+      }
+
+      /* ── Step 3: Generate slides ── */
+
+      async function doGenerate() {
+        if (state.selectedIdx === null) return;
+
+        var duration = +(document.getElementById("duration").value) || 50;
+        var startTime = +(document.getElementById("start").value) || 0;
+        var selectedImg = state.images[state.selectedIdx];
+        var slideCount = 3;
+
+        document.getElementById("genBtn").disabled = true;
+        showStep("step3");
+        hideStatus();
+
+        function setProgress(label, pct) {
+          document.getElementById("step3").innerHTML =
+            '<div class="progress-wrap">' +
+              '<div class="spinner"></div>' +
+              '<div class="progress-label">' + esc(label) + '</div>' +
+              '<div class="progress-bar"><div class="progress-fill" style="width:' + pct + '%"></div></div>' +
+            '</div>' +
+            '<button class="btn btn-back" onclick="backToStep2()">&#8592; Annuler</button>';
+        }
+
+        try {
+          /* 1. Download audio */
+          setProgress("T\u00e9l\u00e9chargement audio...", 5);
+          var audioResp = await fetch("/api/audio", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ url: document.getElementById("url").value.trim() }),
+          });
+          if (!audioResp.ok) {
+            var err = await audioResp.json().catch(function() { return { error: "Erreur serveur" }; });
+            throw new Error(err.error || "Erreur t\u00e9l\u00e9chargement audio");
+          }
+          var audioBytes = new Uint8Array(await audioResp.arrayBuffer());
+          var audioMime = audioResp.headers.get("Content-Type") || "audio/mp4";
+          var audioExt = audioMime.includes("webm") ? "webm" : "m4a";
+
+          /* 2. Create vinyl image client-side */
+          setProgress("Cr\u00e9ation image vinyl...", 20);
+          var vinylBlob;
+          try {
+            vinylBlob = await createVinylImage(selectedImg.url);
+          } catch (e) {
+            vinylBlob = await createVinylImage("/api/proxy?url=" + encodeURIComponent(selectedImg.url));
+          }
+          var vinylBytes = new Uint8Array(await vinylBlob.arrayBuffer());
+
+          /* 3. Load ffmpeg.wasm */
+          setProgress("Chargement moteur vid\u00e9o (31 MB, mis en cache apr\u00e8s)...", 30);
+          await loadFFmpeg();
+
+          /* 4. Write files to virtual FS */
+          await ffmpegInstance.writeFile("vinyl.png", vinylBytes);
+          await ffmpegInstance.writeFile("audio." + audioExt, audioBytes);
+
+          /* 5. Generate each slide */
+          var slides = [];
+          for (var i = 0; i < slideCount; i++) {
+            var segStart = startTime + i * duration;
+            var outName = "slide_" + (i + 1) + ".mp4";
+            var pct = 35 + Math.round((i / slideCount) * 55);
+            setProgress("Cr\u00e9ation slide " + (i + 1) + "/" + slideCount + "...", pct);
+
+            await ffmpegInstance.exec([
+              "-loop", "1", "-i", "vinyl.png",
+              "-i", "audio." + audioExt,
+              "-ss", String(segStart), "-t", String(duration),
+              "-c:v", "libx264", "-tune", "stillimage",
+              "-c:a", "aac", "-b:a", "256k",
+              "-r", "30", "-pix_fmt", "yuv420p",
+              "-shortest", "-movflags", "+faststart",
+              outName,
+            ]);
+
+            var data = await ffmpegInstance.readFile(outName);
+            var blob = new Blob([data.buffer], { type: "video/mp4" });
+            slides.push({ name: outName, url: URL.createObjectURL(blob) });
+            await ffmpegInstance.deleteFile(outName);
+          }
+
+          /* 6. Cleanup FS */
+          await ffmpegInstance.deleteFile("vinyl.png");
+          await ffmpegInstance.deleteFile("audio." + audioExt);
+
+          /* 7. Show results */
+          showResults(slides);
+
+        } catch (e) {
+          document.getElementById("step3").innerHTML =
+            '<div class="progress-wrap"><div class="status-text error">' + esc(e.message) + '</div></div>' +
+            '<button class="btn btn-back" onclick="backToStep2()">&#8592; Retour</button>';
+        }
+      }
+
+      function showResults(slides) {
+        window._resultFiles = slides;
+        var h = '<div class="section-title">Slides g\u00e9n\u00e9r\u00e9es</div>';
+        h += '<div class="meta-info"><div class="meta-artist">' + esc(state.artist) +
+             '</div><div class="meta-track">' + esc(state.track) + '</div></div>';
+
+        h += '<video class="video-preview" controls autoplay muted playsinline src="' + slides[0].url + '"></video>';
+
+        h += '<button class="btn btn-bulk" onclick="bulkDownload()">' +
+             '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">' +
+             '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>' +
+             '<polyline points="7 10 12 15 17 10"/>' +
+             '<line x1="12" y1="15" x2="12" y2="3"/></svg>' +
+             'Tout t\u00e9l\u00e9charger (' + slides.length + ' slides)</button>';
+
+        h += '<div class="slides-list">';
+        slides.forEach(function(f, i) {
+          h += '<div class="slide-card"><div class="slide-info">' +
+               '<div class="slide-icon">&#9654;</div>' +
+               '<div><div class="slide-name">Slide ' + (i + 1) + '</div>' +
+               '<div class="slide-detail">' + f.name + '</div></div></div>' +
+               '<a class="dl-btn" href="' + f.url + '" download="' + f.name + '">T\u00e9l\u00e9charger</a></div>';
+        });
+        h += '</div>';
+
+        var img = state.selectedIdx !== null ? state.images[state.selectedIdx] : (state.images ? state.images[0] : {});
+        var cap = "Artist: " + state.artist + "\nMusic: " + state.track + "\n";
+        if (img && img.label) cap += "Label: " + img.label + "\n";
+        if (img && img.year) cap += "Year: " + img.year + "\n";
+        cap += "\n.\n.\n.\n\n#deephouse #funkyhouse #chicagohouse #house #garagehouse";
+        window._cap = cap;
+
+        h += '<div class="section-title" style="margin-top:24px">Caption Instagram</div>';
+        h += '<div class="caption-box" id="captionBoxResult">' +
+             '<button class="copy-btn" onclick="copyC()">Copier</button>' +
+             esc(cap).replace(/#(\w+)/g, '<span class="ht">#$1</span>') + '</div>';
+
+        h += '<button class="btn btn-back" style="margin-top:20px" onclick="backToSearch()">&#8592; Nouvelle recherche</button>';
+
+        document.getElementById("step3").innerHTML = h;
+      }
+
+      function bulkDownload() {
+        if (!window._resultFiles) return;
+        window._resultFiles.forEach(function(f, i) {
+          setTimeout(function() {
+            var a = document.createElement("a");
+            a.href = f.url; a.download = f.name;
+            document.body.appendChild(a); a.click(); document.body.removeChild(a);
+          }, i * 300);
+        });
+      }
+
+      function backToStep2() {
+        showStep("step2");
+        document.getElementById("genBtn").disabled = false;
+        document.getElementById("genBtn").textContent = "G\u00e9n\u00e9rer les 3 slides";
       }
     </script>
   </body>
