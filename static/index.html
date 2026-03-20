@@ -615,16 +615,23 @@
 
       function bulkDownload() {
         if (!window._resultFiles) return;
-        window._resultFiles.forEach(function (f, i) {
+        var idx = 0;
+        function next() {
+          if (idx >= window._resultFiles.length) return;
+          var f = window._resultFiles[idx];
+          idx++;
+          var a = document.createElement("a");
+          a.href = "/output/" + f.name;
+          a.download = f.name;
+          a.style.display = "none";
+          document.body.appendChild(a);
+          a.click();
           setTimeout(function () {
-            var a = document.createElement("a");
-            a.href = "/output/" + f.name;
-            a.download = f.name;
-            document.body.appendChild(a);
-            a.click();
             document.body.removeChild(a);
-          }, i * 300);
-        });
+            next();
+          }, 1000);
+        }
+        next();
       }
 
       function backToSearch() {

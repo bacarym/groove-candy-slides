@@ -1,5 +1,10 @@
 {
   "framework": null,
   "buildCommand": "echo done",
-  "outputDirectory": "public"
+  "outputDirectory": "public",
+  "functions": {
+    "api/audio.js": {
+      "maxDuration": 30
+    }
+  }
 }
