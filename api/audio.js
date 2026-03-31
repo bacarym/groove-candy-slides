@@ -62,7 +62,7 @@ function setupDom() {
 async function generatePoToken() {
   setupDom();
 
-  const innertube = await Innertube.create({ retrieve_player: false });
+  const innertube = await Innertube.create({ retrieve_player: false, fetch: globalThis.fetch });
   const visitorData = innertube.session.context.client.visitorData;
   if (!visitorData) throw new Error('Could not get visitor data');
 
@@ -111,6 +111,7 @@ export default async function handler(req, res) {
       po_token: poToken,
       visitor_data: visitorData,
       generate_session_locally: true,
+      fetch: globalThis.fetch,
     });
 
     const info = await innertube.getBasicInfo(videoId);
