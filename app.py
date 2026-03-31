@@ -151,4 +151,4 @@ def run_pipeline(job_id, url, image_path, duration, start):
 if __name__ == "__main__":
     print("\n  Groove Candy Slide Maker")
     print("  http://localhost:8080\n")
-    app.run(debug=False, port=8080)
+    app.run(debug=False, host="0.0.0.0", port=8080)

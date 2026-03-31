@@ -21,7 +21,7 @@ def parse_youtube_oembed(url):
     data = resp.json()
     title = data.get("title", "")
 
-    match = re.match(r"^(.+?)\s*[-–—]\s*(.+)$", title)
+    match = re.match(r"^(.+?)\s*[-–—|]\s*(.+)$", title)
     if match:
         artist = match.group(1).strip()
         track = match.group(2).strip()

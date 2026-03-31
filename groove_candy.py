@@ -40,8 +40,8 @@ def parse_youtube(url):
     data = json.loads(result.stdout)
     title = data.get("title", "")
 
-    # Parse "Artist - Track (Remix Info)" — keep remix/version info in track title
-    match = re.match(r"^(.+?)\s*[-–—]\s*(.+)$", title)
+    # Parse "Artist - Track" or "Artist | Track" — keep remix/version info in track title
+    match = re.match(r"^(.+?)\s*[-–—|]\s*(.+)$", title)
     if match:
         artist = match.group(1).strip()
         track = match.group(2).strip()
