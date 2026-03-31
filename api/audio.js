@@ -11,6 +11,10 @@ if (CF_PROXY_URL) {
   const PROXY_DOMAINS = ['youtube.com', 'youtu.be', 'googlevideo.com', 'google.com', 'gstatic.com', 'ytimg.com'];
 
   globalThis.fetch = function patchedFetch(input, init) {
+    if (input && typeof input.then === 'function') {
+      return input.then((resolved) => patchedFetch(resolved, init));
+    }
+
     let urlStr;
     if (typeof input === 'string') urlStr = input;
     else if (input instanceof URL) urlStr = input.href;
