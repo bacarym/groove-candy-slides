@@ -5,35 +5,37 @@ import { JSDOM } from 'jsdom';
 const REQUEST_KEY = 'O43z0dpjhgX20SCx4KAo';
 const MAX_BYTES = 4_400_000;
 const CF_PROXY_URL = process.env.CF_PROXY_URL;
+const _nativeFetch = globalThis.fetch;
 
-async function proxyFetch(input, init = {}) {
-  const urlStr = typeof input === 'string' ? input : input.url || String(input);
-  const needsProxy = CF_PROXY_URL && (
-    urlStr.includes('youtube.com') ||
-    urlStr.includes('googlevideo.com') ||
-    urlStr.includes('google.com') ||
-    urlStr.includes('gstatic.com')
-  );
+if (CF_PROXY_URL) {
+  const PROXY_DOMAINS = ['youtube.com', 'youtu.be', 'googlevideo.com', 'google.com', 'gstatic.com', 'ytimg.com'];
 
-  if (!needsProxy) return fetch(input, init);
+  globalThis.fetch = function patchedFetch(input, init) {
+    let urlStr;
+    if (typeof input === 'string') urlStr = input;
+    else if (input instanceof URL) urlStr = input.href;
+    else if (input && typeof input === 'object' && input.url) urlStr = input.url;
+    else return _nativeFetch(input, init);
 
-  const hdrs = {};
-  const src = init.headers || (typeof input !== 'string' && input.headers ? input.headers : null);
-  if (src) {
-    if (typeof src.forEach === 'function') src.forEach((v, k) => { hdrs[k] = v; });
-    else if (typeof src === 'object') Object.assign(hdrs, src);
-  }
+    const needsProxy = PROXY_DOMAINS.some((d) => urlStr.includes(d));
+    if (!needsProxy) return _nativeFetch(input, init);
 
-  return fetch(CF_PROXY_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      url: urlStr,
-      method: init.method || (typeof input !== 'string' ? input.method : undefined) || 'GET',
-      headers: hdrs,
-      body: typeof init.body === 'string' ? init.body : undefined,
-    }),
-  });
+    const hdrs = {};
+    const src = init?.headers || (typeof input !== 'string' && input.headers ? input.headers : null);
+    if (src) {
+      if (typeof src.forEach === 'function') src.forEach((v, k) => { hdrs[k] = v; });
+      else if (typeof src === 'object') Object.assign(hdrs, src);
+    }
+
+    const method = init?.method || (typeof input !== 'string' ? input.method : undefined) || 'GET';
+    const body = typeof init?.body === 'string' ? init.body : undefined;
+
+    return _nativeFetch(CF_PROXY_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url: urlStr, method, headers: hdrs, body }),
+    });
+  };
 }
 
 let domReady = false;
@@ -60,12 +62,12 @@ function setupDom() {
 async function generatePoToken() {
   setupDom();
 
-  const innertube = await Innertube.create({ retrieve_player: false, fetch: proxyFetch });
+  const innertube = await Innertube.create({ retrieve_player: false });
   const visitorData = innertube.session.context.client.visitorData;
   if (!visitorData) throw new Error('Could not get visitor data');
 
   const bgConfig = {
-    fetch: proxyFetch,
+    fetch: globalThis.fetch,
     globalObj: globalThis,
     identifier: visitorData,
     requestKey: REQUEST_KEY,
@@ -109,14 +111,13 @@ export default async function handler(req, res) {
       po_token: poToken,
       visitor_data: visitorData,
       generate_session_locally: true,
-      fetch: proxyFetch,
     });
 
     const info = await innertube.getBasicInfo(videoId);
     const format = info.chooseFormat({ quality: 'best', type: 'audio' });
     const streamUrl = format.decipher(innertube.session.player);
 
-    const audioResp = await proxyFetch(streamUrl, {
+    const audioResp = await globalThis.fetch(streamUrl, {
       headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/131.0.0.0 Safari/537.36' },
     });
     if (!audioResp.ok) throw new Error(`Audio fetch failed: ${audioResp.status}`);
