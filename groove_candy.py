@@ -31,12 +31,25 @@ from config import (
 )
 
 
+WARP_PROXY = os.environ.get("WARP_PROXY", "")
+
+
+def _ytdlp_proxy_args():
+    """Return yt-dlp proxy args if WARP proxy is available."""
+    if WARP_PROXY:
+        return ["--proxy", WARP_PROXY]
+    return []
+
+
 def parse_youtube(url):
     """Extract metadata from a YouTube URL using yt-dlp."""
     result = subprocess.run(
-        ["yt-dlp", "--dump-json", "--no-playlist", url],
-        capture_output=True, text=True, check=True,
+        ["yt-dlp", "--dump-json", "--no-playlist", *_ytdlp_proxy_args(), url],
+        capture_output=True, text=True,
     )
+    if result.returncode != 0:
+        stderr = result.stderr.strip()
+        raise RuntimeError(f"yt-dlp a échoué (code {result.returncode}): {stderr}")
     data = json.loads(result.stdout)
     title = data.get("title", "")
 
@@ -64,6 +77,7 @@ def download_audio(url, output_dir):
         [
             "yt-dlp", "-x", "--audio-format", "m4a",
             "--no-playlist",
+            *_ytdlp_proxy_args(),
             "-o", output_template,
             url,
         ],

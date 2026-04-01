@@ -1,7 +1,9 @@
 # Groove Candy Slide Maker — Configuration
 
+import os
+
 # Discogs API token (get yours at https://www.discogs.com/settings/developers)
-DISCOGS_TOKEN = "XvbJrfbtCsGlSRipdODoCZEpmDHwoxBLVbYhrprE"
+DISCOGS_TOKEN = os.environ.get("DISCOGS_TOKEN", "YOUR_DISCOGS_TOKEN_HERE")
 
 # User-Agent required by Discogs API
 DISCOGS_USER_AGENT = "GrooveCandySlideMaker/1.0"
