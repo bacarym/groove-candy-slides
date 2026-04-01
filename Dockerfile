@@ -14,10 +14,10 @@ RUN curl -fsSL https://dl.deno.land/release/v2.2.11/deno-x86_64-unknown-linux-gn
 # Install yt-dlp with EJS component
 RUN pip install --no-cache-dir "yt-dlp[default]"
 
-# Install wgcf + wireproxy (Cloudflare WARP fallback if YouTube blocks Railway IPs)
-RUN curl -L https://github.com/ViRb3/wgcf/releases/download/v2.2.30/wgcf_2.2.30_linux_amd64 \
+# Install wgcf + wireproxy (SOCKS5 proxy via Cloudflare WARP to bypass YouTube IP blocks)
+RUN curl -fsSL https://github.com/ViRb3/wgcf/releases/download/v2.2.30/wgcf_2.2.30_linux_amd64 \
     -o /usr/local/bin/wgcf && chmod +x /usr/local/bin/wgcf
-RUN curl -L https://github.com/pufferffish/wireproxy/releases/download/v1.0.9/wireproxy_linux_amd64.tar.gz \
+RUN curl -fsSL https://github.com/pufferffish/wireproxy/releases/download/v1.0.9/wireproxy_linux_amd64.tar.gz \
     | tar xz -C /usr/local/bin/
 
 # Python deps
