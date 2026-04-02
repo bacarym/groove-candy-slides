@@ -31,38 +31,53 @@ from config import (
 )
 
 
-WARP_PROXY = os.environ.get("WARP_PROXY", "")
+COOKIES_FILE = os.environ.get("YOUTUBE_COOKIES_FILE", "/app/cookies.txt")
 
 
-def _ytdlp_proxy_args():
-    """Return yt-dlp proxy args if WARP proxy is available."""
-    if WARP_PROXY:
-        return ["--proxy", WARP_PROXY]
+def _ytdlp_cookie_args():
+    """Return yt-dlp cookie args if cookies file exists."""
+    if os.path.exists(COOKIES_FILE):
+        return ["--cookies", COOKIES_FILE]
     return []
 
 
 def parse_youtube(url):
-    """Extract metadata from a YouTube URL using yt-dlp."""
-    result = subprocess.run(
-        ["yt-dlp", "--dump-json", "--no-playlist", *_ytdlp_proxy_args(), url],
-        capture_output=True, text=True,
-    )
-    if result.returncode != 0:
-        stderr = result.stderr.strip()
-        raise RuntimeError(f"yt-dlp a échoué (code {result.returncode}): {stderr}")
-    data = json.loads(result.stdout)
-    title = data.get("title", "")
+    """Extract metadata from a YouTube URL using oEmbed API (no IP blocking)."""
+    # Extract video ID from URL
+    video_id = None
+    patterns = [
+        r"(?:v=|/v/|youtu\.be/)([a-zA-Z0-9_-]{11})",
+    ]
+    for pat in patterns:
+        m = re.search(pat, url)
+        if m:
+            video_id = m.group(1)
+            break
 
-    # Parse "Artist - Track" or "Artist | Track" — keep remix/version info in track title
-    match = re.match(r"^(.+?)\s*[-–—|]\s*(.+)$", title)
+    if not video_id:
+        raise RuntimeError(f"Impossible d'extraire l'ID vidéo de : {url}")
+
+    # Use YouTube oEmbed API — free, no auth, no IP blocking
+    oembed_url = f"https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v={video_id}&format=json"
+    resp = requests.get(oembed_url, timeout=15)
+    if resp.status_code == 404:
+        raise RuntimeError(f"Vidéo introuvable : {video_id}")
+    resp.raise_for_status()
+    data = resp.json()
+
+    title = data.get("title", "")
+    author = data.get("author_name", "Unknown")
+
+    # Parse "Artist - Track", "Artist -- Track", or "Artist | Track"
+    match = re.match(r"^(.+?)\s*[-–—|]+\s*(.+)$", title)
     if match:
         artist = match.group(1).strip()
         track = match.group(2).strip()
     else:
-        artist = data.get("uploader", "Unknown")
+        artist = author
         track = title
 
-    # Strip leading (year) or [year] prefix from artist, e.g. "(1997) Dina Carroll" → "Dina Carroll"
+    # Strip leading (year) or [year] prefix from artist
     artist = re.sub(r"^[\(\[]\d{4}[\)\]]\s*", "", artist).strip()
 
     print(f"  Artiste : {artist}")
@@ -73,19 +88,27 @@ def parse_youtube(url):
 def download_audio(url, output_dir):
     """Download audio from YouTube as m4a."""
     output_template = os.path.join(output_dir, "audio.%(ext)s")
-    subprocess.run(
+    result = subprocess.run(
         [
             "yt-dlp", "-x", "--audio-format", "m4a",
             "--no-playlist",
-            *_ytdlp_proxy_args(),
+            *_ytdlp_cookie_args(),
             "-o", output_template,
             url,
         ],
-        check=True,
+        capture_output=True, text=True,
     )
+    if result.returncode != 0:
+        stderr = result.stderr.strip()
+        if "Sign in to confirm" in stderr or "bot" in stderr:
+            raise RuntimeError(
+                "YouTube bloque cette IP. Configure YOUTUBE_COOKIES dans Railway "
+                "(exporte tes cookies depuis ton navigateur avec l'extension 'Get cookies.txt LOCALLY')."
+            )
+        raise RuntimeError(f"yt-dlp a échoué (code {result.returncode}): {stderr}")
+
     audio_path = os.path.join(output_dir, "audio.m4a")
     if not os.path.exists(audio_path):
-        # yt-dlp may keep original format if conversion fails
         for f in os.listdir(output_dir):
             if f.startswith("audio."):
                 audio_path = os.path.join(output_dir, f)
