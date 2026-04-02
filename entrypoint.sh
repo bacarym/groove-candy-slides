@@ -19,4 +19,4 @@ echo "[YT-DLP] Deno: $(deno --version 2>&1 | head -1)"
 # --- Start the app ---
 echo "[APP] Starting Groove Candy on port 8080..."
 cd /app
-exec gunicorn -b 0.0.0.0:8080 -w 2 --timeout 300 app:app
+exec gunicorn -b 0.0.0.0:8080 -w 1 --threads 4 --timeout 300 app:app
