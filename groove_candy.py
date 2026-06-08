@@ -10,6 +10,7 @@ import sys
 import tempfile
 
 from pathlib import Path
+from urllib.parse import urlparse, urlunparse
 
 import requests
 from io import BytesIO
@@ -32,12 +33,32 @@ from config import (
 
 
 COOKIES_FILE = os.environ.get("YOUTUBE_COOKIES_FILE", "/app/cookies.txt")
+PROXY_URL = os.environ.get("PROXY_URL", "").strip()
+# With a residential proxy, cookies trigger session-hijack detection.
+# Disable cookies when proxy is active unless explicitly forced.
+USE_COOKIES = os.environ.get("YT_USE_COOKIES", "0") == "1"
+# Anti-SABR lever: force specific YouTube player clients. Empty by default
+# (keep yt-dlp's own client defaults). Override in Railway without redeploying,
+# e.g. YTDLP_PLAYER_CLIENT="android_vr,web_safari,tv".
+PLAYER_CLIENT = os.environ.get("YTDLP_PLAYER_CLIENT", "").strip()
+
+
+def _ytdlp_proxy_args():
+    """Return yt-dlp --proxy arg if PROXY_URL is set."""
+    return ["--proxy", PROXY_URL] if PROXY_URL else []
 
 
 def _ytdlp_cookie_args():
-    """Return yt-dlp cookie args if cookies file exists."""
-    if os.path.exists(COOKIES_FILE):
+    """Return yt-dlp cookie args if cookies file exists and cookies are enabled."""
+    if USE_COOKIES and os.path.exists(COOKIES_FILE):
         return ["--cookies", COOKIES_FILE]
+    return []
+
+
+def _ytdlp_client_args():
+    """Force specific YouTube player clients only if YTDLP_PLAYER_CLIENT is set."""
+    if PLAYER_CLIENT:
+        return ["--extractor-args", f"youtube:player_client={PLAYER_CLIENT}"]
     return []
 
 
@@ -85,27 +106,87 @@ def parse_youtube(url):
     return {"artist": artist, "track": track, "title": title}
 
 
-def download_audio(url, output_dir):
-    """Download audio from YouTube as m4a."""
-    output_template = os.path.join(output_dir, "audio.%(ext)s")
-    result = subprocess.run(
-        [
-            "yt-dlp", "-x", "--audio-format", "m4a",
-            "--no-playlist",
-            *_ytdlp_cookie_args(),
-            "-o", output_template,
-            url,
-        ],
-        capture_output=True, text=True,
+def _rotate_proxy_url(proxy_url, session_id):
+    """Insert a PacketStream sticky-session tag so each retry gets a fresh IP.
+
+    Extracts the username from the URL dynamically, so it works whatever the
+    PacketStream username is (no hard-coded value).
+    """
+    parsed = urlparse(proxy_url)
+    if not parsed.username:
+        return proxy_url
+    base_user = parsed.username.split("_session-")[0]
+    auth = f"{base_user}_session-{session_id}"
+    if parsed.password:
+        auth += f":{parsed.password}"
+    netloc = f"{auth}@{parsed.hostname}"
+    if parsed.port:
+        netloc += f":{parsed.port}"
+    return urlunparse(
+        (parsed.scheme, netloc, parsed.path, parsed.params, parsed.query, parsed.fragment)
     )
-    if result.returncode != 0:
-        stderr = result.stderr.strip()
-        if "Sign in to confirm" in stderr or "bot" in stderr:
-            raise RuntimeError(
-                "YouTube bloque cette IP. Configure YOUTUBE_COOKIES dans Railway "
-                "(exporte tes cookies depuis ton navigateur avec l'extension 'Get cookies.txt LOCALLY')."
-            )
-        raise RuntimeError(f"yt-dlp a échoué (code {result.returncode}): {stderr}")
+
+
+def download_audio(url, output_dir, max_attempts=4):
+    """Download audio from YouTube as m4a through the residential proxy.
+
+    YouTube throttles datacenter IPs (Railway), which causes read timeouts on
+    the actual audio download. So traffic goes through a residential proxy and
+    each retry rotates to a fresh IP to dodge slow or flagged exit nodes — and
+    we retry on timeouts/network errors too, not only on bot detection.
+    """
+    output_template = os.path.join(output_dir, "audio.%(ext)s")
+    # Errors a new IP cannot fix — fail fast instead of burning every attempt.
+    fatal_markers = (
+        "Private video", "Video unavailable", "has been removed",
+        "members-only", "This video is not available",
+    )
+    last_stderr = ""
+    for attempt in range(1, max_attempts + 1):
+        # Rotate to a fresh PacketStream IP on every retry after the first.
+        proxy_args = _ytdlp_proxy_args()
+        if PROXY_URL and attempt > 1:
+            import random
+            session_id = f"gc{random.randint(10000, 99999)}"
+            proxy_args = ["--proxy", _rotate_proxy_url(PROXY_URL, session_id)]
+
+        result = subprocess.run(
+            [
+                "yt-dlp", "-x", "--audio-format", "m4a",
+                "--no-playlist",
+                "--force-ipv4",
+                "--socket-timeout", "30",
+                "--retries", "5",
+                "--fragment-retries", "10",
+                "--retry-sleep", "2",
+                *_ytdlp_client_args(),
+                *proxy_args,
+                *_ytdlp_cookie_args(),
+                "-o", output_template,
+                url,
+            ],
+            capture_output=True, text=True,
+        )
+        if result.returncode == 0:
+            print(f"  yt-dlp OK (attempt {attempt}/{max_attempts})")
+            break
+        last_stderr = result.stderr.strip()
+        # Don't waste retries on errors a new IP won't fix.
+        if any(m in last_stderr for m in fatal_markers):
+            raise RuntimeError(f"Vidéo inaccessible : {last_stderr[-200:]}")
+        proxy_state = "via proxy" if PROXY_URL else "SANS PROXY (PROXY_URL absent !)"
+        print(f"  yt-dlp attempt {attempt}/{max_attempts} échoué {proxy_state} — nouvelle IP au prochain essai")
+    else:
+        hint = (
+            "Vérifie que ton crédit PacketStream n'est pas épuisé."
+            if PROXY_URL else
+            "AUCUN proxy n'est configuré : la variable PROXY_URL est vide. YouTube bloque "
+            "les téléchargements directs depuis Railway. Ajoute PROXY_URL dans Railway."
+        )
+        raise RuntimeError(
+            f"yt-dlp a échoué après {max_attempts} tentatives. {hint} "
+            f"Dernier message : {last_stderr[-300:]}"
+        )
 
     audio_path = os.path.join(output_dir, "audio.m4a")
     if not os.path.exists(audio_path):
