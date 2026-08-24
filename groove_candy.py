@@ -4,6 +4,7 @@
 import argparse
 import json
 import os
+import random
 import re
 import subprocess
 import sys
@@ -41,11 +42,6 @@ USE_COOKIES = os.environ.get("YT_USE_COOKIES", "0") == "1"
 # (keep yt-dlp's own client defaults). Override in Railway without redeploying,
 # e.g. YTDLP_PLAYER_CLIENT="android_vr,web_safari,tv".
 PLAYER_CLIENT = os.environ.get("YTDLP_PLAYER_CLIENT", "").strip()
-
-
-def _ytdlp_proxy_args():
-    """Return yt-dlp --proxy arg if PROXY_URL is set."""
-    return ["--proxy", PROXY_URL] if PROXY_URL else []
 
 
 def _ytdlp_cookie_args():
@@ -106,20 +102,22 @@ def parse_youtube(url):
     return {"artist": artist, "track": track, "title": title}
 
 
-def _rotate_proxy_url(proxy_url, session_id):
-    """Insert a PacketStream sticky-session tag so each retry gets a fresh IP.
+def _proxy_url_with_session(proxy_url, session_id):
+    """Pin a PacketStream sticky session so one download keeps one exit IP.
 
-    Extracts the username from the URL dynamically, so it works whatever the
-    PacketStream username is (no hard-coded value).
+    PacketStream reads session/country modifiers from the auth key (the
+    password), never from the username: a modifier on the username is an
+    unknown account and the gateway answers 407.
+
+    Without a session the gateway picks a new exit on every connection, so a
+    single yt-dlp run can hop between IPs mid-download (sometimes onto a
+    datacenter exit YouTube throttles) and stall.
     """
     parsed = urlparse(proxy_url)
-    if not parsed.username:
+    if not (parsed.username and parsed.password):
         return proxy_url
-    base_user = parsed.username.split("_session-")[0]
-    auth = f"{base_user}_session-{session_id}"
-    if parsed.password:
-        auth += f":{parsed.password}"
-    netloc = f"{auth}@{parsed.hostname}"
+    base_key = parsed.password.split("_session-")[0]
+    netloc = f"{parsed.username}:{base_key}_session-{session_id}@{parsed.hostname}"
     if parsed.port:
         netloc += f":{parsed.port}"
     return urlunparse(
@@ -131,9 +129,10 @@ def download_audio(url, output_dir, max_attempts=4):
     """Download audio from YouTube as m4a through the residential proxy.
 
     YouTube throttles datacenter IPs (Railway), which causes read timeouts on
-    the actual audio download. So traffic goes through a residential proxy and
-    each retry rotates to a fresh IP to dodge slow or flagged exit nodes — and
-    we retry on timeouts/network errors too, not only on bot detection.
+    the actual audio download. So traffic goes through a residential proxy,
+    each attempt holding one sticky exit IP and retries moving to a fresh one
+    to dodge slow or flagged nodes — and we retry on timeouts/network errors
+    too, not only on bot detection.
     """
     output_template = os.path.join(output_dir, "audio.%(ext)s")
     # Errors a new IP cannot fix — fail fast instead of burning every attempt.
@@ -141,14 +140,15 @@ def download_audio(url, output_dir, max_attempts=4):
         "Private video", "Video unavailable", "has been removed",
         "members-only", "This video is not available",
     )
+    first_stderr = ""
     last_stderr = ""
     for attempt in range(1, max_attempts + 1):
-        # Rotate to a fresh PacketStream IP on every retry after the first.
-        proxy_args = _ytdlp_proxy_args()
-        if PROXY_URL and attempt > 1:
-            import random
+        # A fresh sticky session per attempt, from the very first one: the exit
+        # IP stays put for the whole download and changes only on retry.
+        proxy_args = []
+        if PROXY_URL:
             session_id = f"gc{random.randint(10000, 99999)}"
-            proxy_args = ["--proxy", _rotate_proxy_url(PROXY_URL, session_id)]
+            proxy_args = ["--proxy", _proxy_url_with_session(PROXY_URL, session_id)]
 
         result = subprocess.run(
             [
@@ -171,6 +171,14 @@ def download_audio(url, output_dir, max_attempts=4):
             print(f"  yt-dlp OK (attempt {attempt}/{max_attempts})")
             break
         last_stderr = result.stderr.strip()
+        if not first_stderr:
+            first_stderr = last_stderr
+        # Rejected credentials: PacketStream says never retry an auth failure.
+        if "407" in last_stderr or "Proxy Authentication Required" in last_stderr:
+            raise RuntimeError(
+                "Le proxy PacketStream refuse les identifiants (407). Vérifie PROXY_URL "
+                "dans Railway, au format http://USER:AUTH_KEY@proxy.packetstream.io:31112"
+            )
         # Don't waste retries on errors a new IP won't fix.
         if any(m in last_stderr for m in fatal_markers):
             raise RuntimeError(f"Vidéo inaccessible : {last_stderr[-200:]}")
@@ -178,14 +186,19 @@ def download_audio(url, output_dir, max_attempts=4):
         print(f"  yt-dlp attempt {attempt}/{max_attempts} échoué {proxy_state} — nouvelle IP au prochain essai")
     else:
         hint = (
-            "Vérifie que ton crédit PacketStream n'est pas épuisé."
+            "Le proxy répond mais le téléchargement ne passe pas : crédit PacketStream, "
+            "exits saturés, ou format YouTube indisponible (voir YTDLP_PLAYER_CLIENT)."
             if PROXY_URL else
             "AUCUN proxy n'est configuré : la variable PROXY_URL est vide. YouTube bloque "
             "les téléchargements directs depuis Railway. Ajoute PROXY_URL dans Railway."
         )
+        # Surface the first failure too: it carries the original cause, which a
+        # later attempt's message would otherwise hide.
+        detail = f"Première erreur : {first_stderr[-300:]}"
+        if last_stderr != first_stderr:
+            detail += f" | Dernière erreur : {last_stderr[-300:]}"
         raise RuntimeError(
-            f"yt-dlp a échoué après {max_attempts} tentatives. {hint} "
-            f"Dernier message : {last_stderr[-300:]}"
+            f"yt-dlp a échoué après {max_attempts} tentatives. {hint} {detail}"
         )
 
     audio_path = os.path.join(output_dir, "audio.m4a")
