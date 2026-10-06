@@ -11,10 +11,16 @@ else
 fi
 
 # --- Update yt-dlp to latest (YouTube breaks compat frequently) ---
-echo "[YT-DLP] Updating to latest version..."
-pip install -U "yt-dlp[default]" 2>&1 | tail -1
-echo "[YT-DLP] Version: $(yt-dlp --version)"
-echo "[YT-DLP] Deno: $(deno --version 2>&1 | head -1)"
+# Runs in the background so the server answers immediately: with Railway
+# Serverless the container restarts on every wake-up, and a blocking pip
+# install there delayed (or 502'd) the first request. yt-dlp is called as a
+# subprocess per job, so the next job picks up the updated binary.
+(
+  echo "[YT-DLP] Updating to latest version in background..."
+  pip install -U "yt-dlp[default]" 2>&1 | tail -1
+  echo "[YT-DLP] Version: $(yt-dlp --version)"
+  echo "[YT-DLP] Deno: $(deno --version 2>&1 | head -1)"
+) &
 
 # --- Start the app ---
 echo "[APP] Starting Groove Candy on port 8080..."
