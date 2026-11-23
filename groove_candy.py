@@ -102,22 +102,21 @@ def parse_youtube(url):
     return {"artist": artist, "track": track, "title": title}
 
 
-def _proxy_url_with_session(proxy_url, session_id):
-    """Pin a PacketStream sticky session so one download keeps one exit IP.
+def _proxy_url_with_session(proxy_url, session_id, minutes=10):
+    """Pin a FlameProxies sticky session so one download keeps one exit IP.
 
-    PacketStream reads session/country modifiers from the auth key (the
-    password), never from the username: a modifier on the username is an
-    unknown account and the gateway answers 407.
+    FlameProxies reads session modifiers from the USERNAME:
+    `<user>-session-<id>-time-<minutes>` (the password stays unchanged).
 
     Without a session the gateway picks a new exit on every connection, so a
-    single yt-dlp run can hop between IPs mid-download (sometimes onto a
-    datacenter exit YouTube throttles) and stall.
+    single yt-dlp run can hop between IPs mid-download and stall.
     """
     parsed = urlparse(proxy_url)
     if not (parsed.username and parsed.password):
         return proxy_url
-    base_key = parsed.password.split("_session-")[0]
-    netloc = f"{parsed.username}:{base_key}_session-{session_id}@{parsed.hostname}"
+    base_user = parsed.username.split("-session-")[0]
+    user = f"{base_user}-session-{session_id}-time-{minutes}"
+    netloc = f"{user}:{parsed.password}@{parsed.hostname}"
     if parsed.port:
         netloc += f":{parsed.port}"
     return urlunparse(
@@ -173,11 +172,11 @@ def download_audio(url, output_dir, max_attempts=4):
         last_stderr = result.stderr.strip()
         if not first_stderr:
             first_stderr = last_stderr
-        # Rejected credentials: PacketStream says never retry an auth failure.
+        # Rejected credentials: retrying an auth failure never helps.
         if "407" in last_stderr or "Proxy Authentication Required" in last_stderr:
             raise RuntimeError(
-                "Le proxy PacketStream refuse les identifiants (407). Vérifie PROXY_URL "
-                "dans Railway, au format http://USER:AUTH_KEY@proxy.packetstream.io:31112"
+                "Le proxy FlameProxies refuse les identifiants (407). Vérifie PROXY_URL "
+                "dans Railway, au format http://USER:PASS@proxy.flameproxies.com:8989"
             )
         # Don't waste retries on errors a new IP won't fix.
         if any(m in last_stderr for m in fatal_markers):
@@ -186,7 +185,7 @@ def download_audio(url, output_dir, max_attempts=4):
         print(f"  yt-dlp attempt {attempt}/{max_attempts} échoué {proxy_state} — nouvelle IP au prochain essai")
     else:
         hint = (
-            "Le proxy répond mais le téléchargement ne passe pas : crédit PacketStream, "
+            "Le proxy répond mais le téléchargement ne passe pas : crédit FlameProxies (Go restants), "
             "exits saturés, ou format YouTube indisponible (voir YTDLP_PLAYER_CLIENT)."
             if PROXY_URL else
             "AUCUN proxy n'est configuré : la variable PROXY_URL est vide. YouTube bloque "
