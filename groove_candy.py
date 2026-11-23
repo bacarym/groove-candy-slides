@@ -35,6 +35,10 @@ from config import (
 
 COOKIES_FILE = os.environ.get("YOUTUBE_COOKIES_FILE", "/app/cookies.txt")
 PROXY_URL = os.environ.get("PROXY_URL", "").strip()
+# Optional pool of proxies (FlameProxies "generate" output, one per line or
+# comma-separated). Each attempt picks a different one. Accepts full URLs or
+# the raw host:port:user:pass format.
+PROXY_URLS = os.environ.get("PROXY_URLS", "").strip()
 # With a residential proxy, cookies trigger session-hijack detection.
 # Disable cookies when proxy is active unless explicitly forced.
 USE_COOKIES = os.environ.get("YT_USE_COOKIES", "0") == "1"
@@ -102,18 +106,44 @@ def parse_youtube(url):
     return {"artist": artist, "track": track, "title": title}
 
 
+def _normalize_proxy(raw):
+    """Turn a proxy string into a URL yt-dlp accepts.
+
+    Providers like FlameProxies hand out "host:port:user:pass" lines; yt-dlp
+    needs "http://user:pass@host:port". Full URLs pass through unchanged.
+    """
+    raw = raw.strip()
+    if not raw:
+        return ""
+    if "://" in raw:
+        return raw
+    parts = raw.split(":")
+    if len(parts) == 4:
+        host, port, user, password = parts
+        return f"http://{user}:{password}@{host}:{port}"
+    return f"http://{raw}"
+
+
+def _proxy_pool():
+    """All configured proxies: PROXY_URLS (list) first, else PROXY_URL."""
+    pool = [_normalize_proxy(p) for p in re.split(r"[\n,;]+", PROXY_URLS)]
+    pool = [p for p in pool if p]
+    if not pool and PROXY_URL:
+        pool = [_normalize_proxy(PROXY_URL)]
+    return pool
+
+
 def _proxy_url_with_session(proxy_url, session_id):
-    """Pin a PacketStream sticky session so one download keeps one exit IP.
+    """Pin a sticky session so one download keeps one exit IP.
 
-    PacketStream reads session/country modifiers from the auth key (the
-    password), never from the username: a modifier on the username is an
-    unknown account and the gateway answers 407.
-
-    Without a session the gateway picks a new exit on every connection, so a
-    single yt-dlp run can hop between IPs mid-download (sometimes onto a
-    datacenter exit YouTube throttles) and stall.
+    Only PacketStream gets a session tag (on the auth key — a modifier on the
+    username is an unknown account and the gateway answers 407). Other
+    providers (FlameProxies…) encode the session in the generated credentials
+    themselves, so their URL is used as-is.
     """
     parsed = urlparse(proxy_url)
+    if "packetstream" not in (parsed.hostname or ""):
+        return proxy_url
     if not (parsed.username and parsed.password):
         return proxy_url
     base_key = parsed.password.split("_session-")[0]
@@ -140,15 +170,18 @@ def download_audio(url, output_dir, max_attempts=4):
         "Private video", "Video unavailable", "has been removed",
         "members-only", "This video is not available",
     )
+    pool = _proxy_pool()
+    random.shuffle(pool)
     first_stderr = ""
     last_stderr = ""
     for attempt in range(1, max_attempts + 1):
         # A fresh sticky session per attempt, from the very first one: the exit
         # IP stays put for the whole download and changes only on retry.
         proxy_args = []
-        if PROXY_URL:
+        if pool:
+            proxy = pool[(attempt - 1) % len(pool)]
             session_id = f"gc{random.randint(10000, 99999)}"
-            proxy_args = ["--proxy", _proxy_url_with_session(PROXY_URL, session_id)]
+            proxy_args = ["--proxy", _proxy_url_with_session(proxy, session_id)]
 
         result = subprocess.run(
             [
@@ -173,22 +206,24 @@ def download_audio(url, output_dir, max_attempts=4):
         last_stderr = result.stderr.strip()
         if not first_stderr:
             first_stderr = last_stderr
-        # Rejected credentials: PacketStream says never retry an auth failure.
+        # Rejected credentials: retrying with the same account won't help.
         if "407" in last_stderr or "Proxy Authentication Required" in last_stderr:
             raise RuntimeError(
-                "Le proxy PacketStream refuse les identifiants (407). Vérifie PROXY_URL "
-                "dans Railway, au format http://USER:AUTH_KEY@proxy.packetstream.io:31112"
+                "Le proxy refuse les identifiants (407) : identifiants faux ou forfait "
+                "FlameProxies épuisé/expiré. Vérifie PROXY_URL / PROXY_URLS dans Railway "
+                "(format http://user:pass@host:port ou host:port:user:pass)."
             )
         # Don't waste retries on errors a new IP won't fix.
         if any(m in last_stderr for m in fatal_markers):
             raise RuntimeError(f"Vidéo inaccessible : {last_stderr[-200:]}")
-        proxy_state = "via proxy" if PROXY_URL else "SANS PROXY (PROXY_URL absent !)"
+        proxy_state = "via proxy" if pool else "SANS PROXY (PROXY_URL absent !)"
         print(f"  yt-dlp attempt {attempt}/{max_attempts} échoué {proxy_state} — nouvelle IP au prochain essai")
     else:
         hint = (
-            "Le proxy répond mais le téléchargement ne passe pas : crédit PacketStream, "
-            "exits saturés, ou format YouTube indisponible (voir YTDLP_PLAYER_CLIENT)."
-            if PROXY_URL else
+            "Le proxy répond mais le téléchargement ne passe pas : données du forfait "
+            "FlameProxies épuisées, IP bloquées, ou format YouTube indisponible "
+            "(voir YTDLP_PLAYER_CLIENT)."
+            if pool else
             "AUCUN proxy n'est configuré : la variable PROXY_URL est vide. YouTube bloque "
             "les téléchargements directs depuis Railway. Ajoute PROXY_URL dans Railway."
         )
